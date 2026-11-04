@@ -1,0 +1,308 @@
+{
+  "schemaVersion": 1,
+  "title": "Objects-12｜模型迭代入门",
+  "description": "模型版本迭代示例。数据集、模型名称、评测数字与结论均为虚构，演示如何记录训练改动、微调来源、未采用的实验和多种子复核。",
+  "nodes": [
+    {
+      "id": "v1",
+      "date": "2026-01-05",
+      "row": 1,
+      "title": "M0 · 小卷积基线",
+      "summary": "先固定数据划分和评测口径，建立可复现的参照。",
+      "changes": [
+        "128×128 输入，小型残差卷积网络",
+        "固定训练/验证划分与 seed 42"
+      ],
+      "configuration": "从头训练；SGD，90 epochs，batch 64，初始 LR 0.05。",
+      "initialization": "从头训练，无外部预训练权重。",
+      "notes": "容易混淆外形相近的类别。后续实验统一沿用此数据划分，不根据验证结果重新抽样。\n指标均为演示数据；不代表真实训练结果或硬件性能。",
+      "accent": "gray",
+      "status": "complete",
+      "metrics": [
+        {
+          "name": "示例验证 Top-1",
+          "value": "81.2%"
+        },
+        {
+          "name": "示例宏 F1",
+          "value": "80.8%"
+        },
+        {
+          "name": "参数量（示例）",
+          "value": "1.9 M"
+        },
+        {
+          "name": "推理延迟（示例）",
+          "value": "3.8 ms"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "v2",
+      "date": "2026-01-07",
+      "row": 1,
+      "title": "M1 · 学习率配方",
+      "summary": "网络不变，先排查早期训练不稳定。",
+      "changes": [
+        "前 5 epochs 线性 warmup",
+        "后续改为余弦学习率；其他设置不变"
+      ],
+      "configuration": "M0 架构；SGD，90 epochs，batch 64；使用相同数据划分。",
+      "initialization": "从头训练；继承 M0 的代码与数据配置，不续接权重。",
+      "notes": "收敛更平稳，作为后续分支的共同基线。此版本同时改变 warmup 和调度方式，不能把提升只归因于其中一项。\n指标均为演示数据；不代表真实训练结果或硬件性能。",
+      "accent": "blue",
+      "status": "complete",
+      "metrics": [
+        {
+          "name": "示例验证 Top-1",
+          "value": "84.1%"
+        },
+        {
+          "name": "示例宏 F1",
+          "value": "83.7%"
+        },
+        {
+          "name": "参数量（示例）",
+          "value": "1.9 M"
+        },
+        {
+          "name": "推理延迟（示例）",
+          "value": "3.8 ms"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "v3",
+      "date": "2026-01-08",
+      "row": 0,
+      "title": "M2A · Mixup 对照",
+      "summary": "只增加一种数据增强，观察相近类别的区分。",
+      "changes": ["加入 Mixup，α=0.2", "不改网络宽度、训练轮数和优化器"],
+      "configuration": "M1 配方；Mixup α=0.2；同一验证集。",
+      "initialization": "从头训练；以 M1 为配置参照。",
+      "notes": "示例结果中宏 F1 有所提高，但训练 loss 不能与硬标签基线直接按数值比较。\n指标均为演示数据；不代表真实训练结果或硬件性能。",
+      "accent": "slate",
+      "status": "complete",
+      "metrics": [
+        {
+          "name": "示例验证 Top-1",
+          "value": "85.3%"
+        },
+        {
+          "name": "示例宏 F1",
+          "value": "84.9%"
+        },
+        {
+          "name": "参数量（示例）",
+          "value": "1.9 M"
+        },
+        {
+          "name": "推理延迟（示例）",
+          "value": "3.8 ms"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "v4",
+      "date": "2026-01-08",
+      "row": 2,
+      "title": "M2B · 标签平滑",
+      "summary": "与 M2A 分开，检查过度自信是否影响泛化。",
+      "changes": ["标签平滑 ε=0.1", "不启用 Mixup；其余沿用 M1"],
+      "configuration": "M1 架构与训练配方；标签平滑 ε=0.1。",
+      "initialization": "从头训练，不加载 M2A 的权重。",
+      "notes": "只改变监督目标。示例验证分数略好于 M1；需要更多随机种子判断变化是否稳定。\n指标均为演示数据；不代表真实训练结果或硬件性能。",
+      "accent": "purple",
+      "status": "complete",
+      "metrics": [
+        {
+          "name": "示例验证 Top-1",
+          "value": "84.8%"
+        },
+        {
+          "name": "示例宏 F1",
+          "value": "84.4%"
+        },
+        {
+          "name": "参数量（示例）",
+          "value": "1.9 M"
+        },
+        {
+          "name": "推理延迟（示例）",
+          "value": "3.8 ms"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "v5",
+      "date": "2026-01-10",
+      "row": 1,
+      "title": "M2B-ft · 平滑系数微调",
+      "summary": "检查训练后期是否需要减弱标签平滑。",
+      "changes": [
+        "从 M2B 最佳权重开始",
+        "ε 从 0.1 降至 0.05；低 LR 训练 20 epochs"
+      ],
+      "configuration": "M2B 架构；ε=0.05；LR 0.001，batch 64。",
+      "initialization": "M2B 最佳验证 checkpoint。",
+      "notes": "示例结果只有小幅变化。保留实验记录，不据此声称平滑系数一定越小越好。\n指标均为演示数据；不代表真实训练结果或硬件性能。",
+      "accent": "cyan",
+      "status": "complete",
+      "metrics": [
+        {
+          "name": "示例验证 Top-1",
+          "value": "85.1%"
+        },
+        {
+          "name": "示例宏 F1",
+          "value": "84.7%"
+        },
+        {
+          "name": "参数量（示例）",
+          "value": "1.9 M"
+        },
+        {
+          "name": "推理延迟（示例）",
+          "value": "3.8 ms"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "v6",
+      "date": "2026-01-10",
+      "row": 0,
+      "title": "M2B-ft2 · BN 冻结对照",
+      "summary": "同日补一个归一化状态的对照分支。",
+      "changes": ["继承 M2B-ft 权重", "再训练 10 epochs，冻结 BN 运行统计量"],
+      "configuration": "其余同 M2B-ft；只调整 BN 统计量更新规则。",
+      "initialization": "M2B-ft checkpoint；不重新初始化。",
+      "notes": "示例里没有明显收益，暂不把 BN 冻结并入组合版。这个节点用于保留一次未采用的尝试。\n指标均为演示数据；不代表真实训练结果或硬件性能。",
+      "accent": "green",
+      "status": "complete",
+      "metrics": [
+        {
+          "name": "示例验证 Top-1",
+          "value": "85.0%"
+        },
+        {
+          "name": "示例宏 F1",
+          "value": "84.6%"
+        },
+        {
+          "name": "参数量（示例）",
+          "value": "1.9 M"
+        },
+        {
+          "name": "推理延迟（示例）",
+          "value": "3.8 ms"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "v7",
+      "date": "2026-01-12",
+      "row": 1,
+      "title": "M3 · 组合训练版",
+      "summary": "组合有效方向，重新训练轻量候选。",
+      "changes": [
+        "0.75× 宽度 + Mixup + 标签平滑",
+        "不加入上一轮的 BN 冻结设置"
+      ],
+      "configuration": "90 epochs，batch 64；固定验证划分；末期使用低学习率。",
+      "initialization": "从头训练；上游连线表示方法/配置汇入，不是权重平均。",
+      "notes": "示例中恢复了窄模型的部分精度。多个改动联合使用，仍需补组合消融，才能判断各项贡献。\n指标均为演示数据；不代表真实训练结果或硬件性能。",
+      "accent": "rose",
+      "status": "complete",
+      "metrics": [
+        {
+          "name": "示例验证 Top-1",
+          "value": "85.4%"
+        },
+        {
+          "name": "示例宏 F1",
+          "value": "84.9%"
+        },
+        {
+          "name": "参数量（示例）",
+          "value": "1.2 M"
+        },
+        {
+          "name": "推理延迟（示例）",
+          "value": "2.6 ms"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "v8",
+      "date": "2026-01-12",
+      "row": 2,
+      "title": "M5 · 蒸馏计划",
+      "summary": "下一轮只记录假设，尚未产生训练结果。",
+      "changes": [
+        "用 M2A 作为固定教师",
+        "学生沿用 M3 的轻量架构，计划从头训练"
+      ],
+      "configuration": "待确定蒸馏温度与损失权重；先保持数据与评测口径不变。",
+      "initialization": "计划：M2A 教师权重 + M3 学生架构；学生从头训练。",
+      "notes": "状态应为计划中，没有 Top-1 或延迟测量值。完成训练前不把预期收益写成评测结果。\n指标均为演示数据；不代表真实训练结果或硬件性能。",
+      "accent": "amber",
+      "status": "planned",
+      "metrics": [],
+      "links": []
+    }
+  ],
+  "edges": [
+    {
+      "from": "v1",
+      "to": "v2",
+      "kind": "branch"
+    },
+    {
+      "from": "v2",
+      "to": "v3",
+      "kind": "branch"
+    },
+    {
+      "from": "v2",
+      "to": "v4",
+      "kind": "branch"
+    },
+    {
+      "from": "v4",
+      "to": "v5",
+      "kind": "finetune"
+    },
+    {
+      "from": "v5",
+      "to": "v6",
+      "kind": "finetune"
+    },
+    {
+      "from": "v3",
+      "to": "v7",
+      "kind": "merge"
+    },
+    {
+      "from": "v5",
+      "to": "v7",
+      "kind": "merge"
+    },
+    {
+      "from": "v7",
+      "to": "v8",
+      "kind": "branch"
+    },
+    {
+      "from": "v3",
+      "to": "v8",
+      "kind": "merge"
+    }
+  ]
+}

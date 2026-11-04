@@ -1,0 +1,36 @@
+{
+  "name": "experiment-map",
+  "version": "0.4.2",
+  "description": "A local-first model-version lineage notebook with training origins, evaluation records and retro-futurist themes.",
+  "type": "module",
+  "license": "MIT",
+  "author": "FunkyFrog1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/FunkyFrog1/Experiment-Map.git"
+  },
+  "bugs": {
+    "url": "https://github.com/FunkyFrog1/Experiment-Map/issues"
+  },
+  "homepage": "https://github.com/FunkyFrog1/Experiment-Map#readme",
+  "scripts": {
+    "start": "node src/server.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:ui": "playwright test --config tests/playwright.config.js",
+    "format": "prettier --write src tests docs examples *.md *.json .github"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "model-lineage",
+    "model-versioning",
+    "machine-learning",
+    "local-first",
+    "retro-futurism"
+  ],
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "prettier": "^3.9.10"
+  }
+}

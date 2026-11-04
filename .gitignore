@@ -1,0 +1,32 @@
+# Dependencies and generated files
+node_modules/
+.cache/
+coverage/
+dist/
+
+# Local projects and private data
+/data/*
+!/data/.gitkeep
+
+# Credentials and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Logs and release archives
+*.log
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak

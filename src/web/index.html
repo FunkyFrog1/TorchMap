@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Experiment Map</title>
+    <script>
+      try {
+        document.documentElement.dataset.theme =
+          localStorage.getItem("experiment-map:theme") || "lagoon";
+      } catch {}
+    </script>
+    <link rel="stylesheet" href="/styles/themes.css" />
+    <link rel="stylesheet" href="/styles/base.css" />
+    <link rel="stylesheet" href="/styles/map.css" />
+    <link rel="stylesheet" href="/styles/controls.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand" aria-label="Experiment Map">
+        <span class="brand-mark" aria-hidden="true"
+          ><svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 50 46"
+            fill="currentColor"
+          >
+            <path
+              d="M2124 1120Q2124 1053 2001 1053Q1904 1053 1540 1143Q1370 1046 1370 899Q1370 828 1419 801Q1490 807 1526 807Q1630 807 1630 782Q1630 766 1575 766Q1505 766 1423 786Q1312 770 1165 700Q791 521 791 236Q791 47 995 -4Q958 57 958 137Q958 334 1159.0 500.0Q1360 666 1599 666Q1709 666 1774.0 612.0Q1839 558 1839 467Q1839 272 1625.0 115.5Q1411 -41 1143 -41Q1089 -41 1042 -35Q1138 -164 1327 -164Q1444 -164 1518 -129L1530 -127Q1536 -129 1536 -135Q1536 -149 1462.0 -164.5Q1388 -180 1327 -180Q1118 -180 1008 -29Q855 5 768.5 86.5Q682 168 682 276Q682 421 802.0 547.5Q922 674 1122 739Q1243 779 1399 797Q1288 844 1288 946Q1288 1077 1450 1165Q1218 1221 1067 1221Q771 1221 562.5 1073.0Q354 925 354 715Q354 621 409.0 554.0Q464 487 541 487Q594 487 594 504Q594 513 575 510Q522 510 522 559Q522 587 545.5 607.0Q569 627 602 627Q666 627 666 565Q666 524 629.5 495.5Q593 467 541 467Q448 467 382.5 550.5Q317 634 317 752Q317 929 471 1077Q654 1253 985 1253Q1169 1253 1475 1178Q1613 1245 1796 1245Q1932 1245 2028.0 1208.5Q2124 1172 2124 1120ZM2103 1122Q2103 1161 2020.5 1191.0Q1938 1221 1831 1221Q1684 1221 1563 1157Q1828 1071 2009 1071Q2103 1071 2103 1122ZM1821 475Q1821 547 1764.0 594.0Q1707 641 1620 641Q1405 641 1200.0 462.5Q995 284 995 98Q995 44 1028 -12Q1086 -23 1135 -23Q1371 -23 1596.0 140.5Q1821 304 1821 475Z"
+              transform="matrix(0.022136 0 0 -0.022136 -5.01716 36.01550)"
+            />
+            <text
+              x="24"
+              y="40"
+              font-family="Georgia,Times New Roman,serif"
+              font-size="25"
+              font-weight="600"
+              stroke="var(--panel,#fff)"
+              stroke-width="3"
+              paint-order="stroke fill"
+              stroke-linejoin="round"
+            >
+              m
+            </text>
+          </svg></span
+        ><span class="brand-name">Experiment Map</span>
+      </div>
+      <span id="save-state" role="status"></span>
+      <div class="header-actions">
+        <button id="language" class="header-small" aria-label="Language">
+          中文
+        </button>
+        <button
+          id="theme"
+          class="header-small"
+          data-i18n-title="切换主题"
+          title="切换主题"
+        ></button>
+      </div>
+      <input
+        id="import-file"
+        type="file"
+        accept="application/json,.json"
+        hidden
+      />
+    </header>
+    <aside class="project-sidebar" aria-label="Projects">
+      <label class="sidebar-label" for="project-picker" data-i18n="项目"
+        >项目</label
+      >
+      <select id="project-picker" aria-label="Projects"></select>
+      <details id="project-menu" class="project-management" open>
+        <summary data-i18n="项目">项目</summary>
+        <nav class="project-actions" aria-label="Project actions">
+          <button id="new-project" data-i18n="新建项目">新建项目</button>
+          <button id="project-settings" data-i18n="重命名与说明">
+            重命名与说明
+          </button>
+          <button id="import-project" data-i18n="导入 JSON">导入 JSON</button>
+          <button id="export-project" data-i18n="导出 JSON">导出 JSON</button>
+          <button id="archive-project" data-i18n="归档项目" hidden>
+            归档项目
+          </button>
+        </nav>
+      </details>
+    </aside>
+    <main class="workspace">
+      <section
+        class="map-panel"
+        data-i18n-aria-label="版本路线图"
+        aria-label="版本路线图"
+      >
+        <div class="map-toolbar">
+          <button id="add-node" class="primary" data-i18n="＋ 新增版本">
+            ＋ 新增版本
+          </button>
+          <input
+            id="search"
+            type="search"
+            data-i18n-placeholder="搜索版本 / 改动…"
+            placeholder="搜索版本 / 改动…"
+            data-i18n-aria-label="搜索版本与改动"
+            aria-label="搜索版本与改动"
+          />
+          <div class="history-tools">
+            <button
+              id="undo"
+              data-i18n-title="撤销 Ctrl+Z"
+              title="撤销 Ctrl+Z"
+              data-i18n-aria-label="撤销"
+              aria-label="撤销"
+            >
+              ↶</button
+            ><button
+              id="redo"
+              data-i18n-title="重做 Ctrl+Shift+Z"
+              title="重做 Ctrl+Shift+Z"
+              data-i18n-aria-label="重做"
+              aria-label="重做"
+            >
+              ↷
+            </button>
+          </div>
+          <span id="project-counts" class="counts"></span>
+          <div class="camera-tools">
+            <button
+              id="zoom-out"
+              data-i18n-aria-label="缩小路线图"
+              aria-label="缩小路线图"
+            >
+              −</button
+            ><output id="zoom-level">100%</output
+            ><button
+              id="zoom-in"
+              data-i18n-aria-label="放大路线图"
+              aria-label="放大路线图"
+            >
+              ＋</button
+            ><button
+              id="fit"
+              class="camera-icon"
+              data-i18n-title="全图"
+              title="全图"
+              data-i18n-aria-label="全图"
+              aria-label="全图"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 4H4v4M16 4h4v4M20 16v4h-4M8 20H4v-4" />
+              </svg>
+            </button>
+            <button
+              id="focus"
+              class="camera-icon"
+              data-i18n-title="定位选中"
+              title="定位选中"
+              data-i18n-aria-label="定位选中"
+              aria-label="定位选中"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="6" />
+                <path d="M12 2v4m0 12v4M2 12h4m12 0h4" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div
+          id="viewport"
+          class="viewport"
+          tabindex="0"
+          data-i18n-aria-label="可缩放拖动的实验关系画布"
+          aria-label="可缩放拖动的实验关系画布"
+        >
+          <div id="world" class="world">
+            <svg id="wires" class="wires" aria-hidden="true"></svg>
+          </div>
+          <div class="map-legend">
+            <span
+              ><i class="legend-line"></i
+              ><span data-i18n="版本迭代 / 合并">版本迭代 / 合并</span></span
+            ><span
+              ><i class="legend-line finetune"></i
+              ><span data-i18n="微调">微调</span></span
+            >
+          </div>
+          <div id="empty-map" class="empty-map" hidden>
+            <strong
+              ><span data-i18n="从第一个版本开始"
+                >从第一个版本开始</span
+              ></strong
+            >
+            <p>
+              <span data-i18n="记录改动，连接上游，逐步构建你的版本路线。"
+                >记录改动，连接上游，逐步构建你的版本路线。</span
+              >
+            </p>
+            <button id="empty-add" class="primary">
+              <span data-i18n="＋ 新增版本">＋ 新增版本</span>
+            </button>
+          </div>
+        </div>
+        <span id="map-message" class="visually-hidden" role="status"></span>
+      </section>
+      <aside
+        id="inspector"
+        class="inspector"
+        data-i18n-aria-label="版本详情"
+        aria-label="版本详情"
+      ></aside>
+    </main>
+    <div id="toast" class="toast" role="status" hidden></div>
+
+    <dialog id="node-dialog" aria-labelledby="node-dialog-title">
+      <form id="node-form">
+        <header class="dialog-header">
+          <h2 id="node-dialog-title">
+            <span data-i18n="新增版本">新增版本</span>
+          </h2>
+          <button
+            type="button"
+            class="icon-button close-dialog"
+            data-i18n-aria-label="关闭版本编辑"
+            aria-label="关闭版本编辑"
+          >
+            ×
+          </button>
+        </header>
+        <div class="form-body">
+          <label
+            ><span data-i18n="版本名称">版本名称</span
+            ><input
+              name="title"
+              required
+              maxlength="90"
+              data-i18n-placeholder="例如：v0.2 界面改进"
+              placeholder="例如：v0.2 界面改进"
+          /></label>
+          <div class="form-row">
+            <label
+              ><span data-i18n="日期">日期</span
+              ><input name="date" type="date" required /></label
+            ><label
+              ><span data-i18n="状态">状态</span
+              ><select name="status">
+                <option value="recorded" data-i18n="已记录">已记录</option>
+                <option value="planned" data-i18n="计划中">计划中</option>
+                <option value="running" data-i18n="进行中">进行中</option>
+                <option value="complete" data-i18n="已完成">已完成</option>
+                <option value="paused" data-i18n="已暂停">已暂停</option>
+              </select></label
+            >
+          </div>
+          <label
+            ><span data-i18n="卡片摘要">卡片摘要</span
+            ><input
+              name="summary"
+              maxlength="140"
+              data-i18n-placeholder="用一句话说明这次改变"
+              placeholder="用一句话说明这次改变"
+          /></label>
+          <fieldset class="color-field">
+            <legend><span data-i18n="卡片颜色">卡片颜色</span></legend>
+            <div id="color-options" class="color-options"></div>
+          </fieldset>
+          <fieldset class="parents-field">
+            <legend>
+              <span data-i18n="上游版本">上游版本 </span
+              ><small><span data-i18n="可选多个">可选多个</span></small>
+            </legend>
+            <div id="parent-options" class="parent-options"></div>
+          </fieldset>
+          <label
+            ><span data-i18n="主要改动">主要改动 </span
+            ><small><span data-i18n="每行一条">每行一条</span></small
+            ><textarea
+              name="changes"
+              rows="3"
+              data-i18n-placeholder="改进键盘操作
+调整页面布局"
+              placeholder="改进键盘操作
+调整页面布局"
+            ></textarea>
+          </label>
+          <label
+            ><span data-i18n="配置说明">配置说明</span
+            ><textarea
+              name="configuration"
+              rows="2"
+              data-i18n-placeholder="例如：桌面布局；启用键盘导航"
+              placeholder="例如：桌面布局；启用键盘导航"
+            ></textarea>
+          </label>
+
+          <label
+            ><span data-i18n="初始化来源">初始化来源</span
+            ><input
+              name="initialization"
+              data-i18n-placeholder="例如：从 M1 的最佳权重微调，或从头训练"
+              placeholder="例如：从 M1 的最佳权重微调，或从头训练"
+          /></label>
+          <label
+            ><span data-i18n="指标">指标 </span
+            ><small
+              ><span data-i18n="每行：名称 = 数值"
+                >每行：名称 = 数值</span
+              ></small
+            ><textarea
+              name="metrics"
+              rows="2"
+              data-i18n-placeholder="已完成事项 = 8
+待处理事项 = 2"
+              placeholder="已完成事项 = 8
+待处理事项 = 2"
+            ></textarea>
+          </label>
+          <label
+            ><span data-i18n="相关链接">相关链接 </span
+            ><small
+              ><span data-i18n="每行：名称 | URL">每行：名称 | URL</span></small
+            ><textarea
+              name="links"
+              rows="2"
+              data-i18n-placeholder="版本说明 | https://example.com/report"
+              placeholder="版本说明 | https://example.com/report"
+            ></textarea>
+          </label>
+          <label
+            ><span data-i18n="备注">备注</span
+            ><textarea
+              name="notes"
+              rows="3"
+              data-i18n-placeholder="记录结论、待解决的问题或代码位置"
+              placeholder="记录结论、待解决的问题或代码位置"
+            ></textarea>
+          </label>
+          <p id="node-form-error" class="form-error" role="alert"></p>
+        </div>
+        <footer class="dialog-footer">
+          <button type="button" class="close-dialog">
+            <span data-i18n="取消">取消</span></button
+          ><button type="submit" class="primary">
+            <span data-i18n="保存版本">保存版本</span>
+          </button>
+        </footer>
+      </form>
+    </dialog>
+    <dialog id="project-dialog" aria-labelledby="project-dialog-title">
+      <form id="project-form">
+        <header class="dialog-header">
+          <h2 id="project-dialog-title">
+            <span data-i18n="项目设置">项目设置</span>
+          </h2>
+          <button
+            type="button"
+            class="close-dialog icon-button"
+            data-i18n-aria-label="关闭项目设置"
+            aria-label="关闭项目设置"
+          >
+            ×
+          </button>
+        </header>
+        <div class="form-body">
+          <label
+            ><span data-i18n="项目名称">项目名称</span
+            ><input name="title" required maxlength="120" /></label
+          ><label
+            ><span data-i18n="项目说明">项目说明</span
+            ><textarea name="description" rows="4"></textarea>
+          </label>
+        </div>
+        <footer class="dialog-footer">
+          <button type="button" class="close-dialog">
+            <span data-i18n="取消">取消</span></button
+          ><button type="submit" class="primary">
+            <span data-i18n="保存项目">保存项目</span>
+          </button>
+        </footer>
+      </form>
+    </dialog>
+    <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+      <form id="confirm-form">
+        <header class="dialog-header">
+          <h2 id="confirm-title"><span data-i18n="确认操作">确认操作</span></h2>
+        </header>
+        <div class="form-body"><p id="confirm-message"></p></div>
+        <footer class="dialog-footer">
+          <button type="button" class="close-dialog">
+            <span data-i18n="取消">取消</span></button
+          ><button id="confirm-action" type="submit" class="primary">
+            <span data-i18n="确定">确定</span>
+          </button>
+        </footer>
+      </form>
+    </dialog>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

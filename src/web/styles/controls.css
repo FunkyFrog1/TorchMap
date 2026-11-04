@@ -1,0 +1,290 @@
+/* Original console controls: a solid face, inset highlight and 1px shadow. */
+:where(
+    .header-actions,
+    .app-header nav,
+    .history-tools,
+    .camera-tools,
+    .detail-actions,
+    .dialog-footer,
+    .empty-map,
+    .parent-link
+  )
+  > button:not(.danger-link),
+#archive-project {
+  height: 31px;
+  padding: 0 10px;
+  color: var(--control-ink);
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: 2px;
+  font:
+    13.3333px Consolas,
+    "Microsoft YaHei",
+    sans-serif;
+  box-shadow:
+    inset 1px 1px 0 #fff9,
+    1px 1px 0 var(--control-shadow);
+  text-shadow: none;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+:where(
+    .header-actions,
+    .app-header nav,
+    .history-tools,
+    .camera-tools,
+    .detail-actions,
+    .dialog-footer,
+    .empty-map,
+    .parent-link
+  )
+  > button:not(.danger-link):hover:not(:disabled),
+#archive-project:hover:not(:disabled) {
+  color: var(--control-hover-ink);
+  background: var(--control-hover);
+  border-color: var(--control-hover-border);
+}
+.header-actions > button.primary,
+.primary,
+:where(.app-header nav, .dialog-footer, .empty-map) > button.primary {
+  color: var(--control-hover-ink);
+  background: var(--primary-bg);
+  border-color: var(--primary-border);
+}
+.header-actions > button.primary:hover:not(:disabled),
+.primary:hover:not(:disabled),
+:where(.app-header nav, .dialog-footer, .empty-map)
+  > button.primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover-border);
+}
+.map-toolbar input,
+#language,
+#project-picker,
+.appearance-tools #language,
+.theme-control {
+  height: 31px;
+  padding: 0 10px;
+  color: var(--control-ink);
+  background: var(--panel);
+  border: 1px solid var(--control-border);
+  border-radius: 2px;
+  box-shadow: none;
+  font:
+    13.3333px Consolas,
+    "Microsoft YaHei",
+    sans-serif;
+}
+.theme-control {
+  padding: 0;
+}
+.theme-control select {
+  height: 29px;
+  padding: 0 7px;
+  font: inherit;
+  background: transparent;
+  color: inherit;
+  border: 0;
+}
+.project-heading,
+.project-heading:hover:not(:disabled) {
+  color: var(--ink);
+  box-shadow: none;
+}
+.project-heading strong {
+  font-family: Consolas, "Microsoft YaHei", sans-serif;
+}
+.parent-link button {
+  height: auto;
+  min-height: 31px;
+  padding-block: 5px;
+}
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--action);
+  outline-offset: 3px;
+}
+.camera-tools output {
+  color: var(--date-ink);
+  font:
+    11px Consolas,
+    monospace;
+}
+@media (max-width: 560px) {
+  .app-header nav > button {
+    font-size: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none !important;
+  }
+}
+
+/* Lighter header controls, while the blueprint keeps its original palette. */
+.header-actions > button,
+.header-actions > button.primary,
+.app-header .toolbar-menu > summary {
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0 11px;
+  background: transparent;
+  color: var(--text);
+  font:
+    500 12px/30px "Segoe UI",
+    "Microsoft YaHei",
+    sans-serif;
+  box-shadow: none;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.header-actions > button:hover:not(:disabled),
+.app-header .toolbar-menu > summary:hover,
+.app-header .toolbar-menu[open] > summary {
+  background: var(--subtle);
+  border-color: transparent;
+  color: var(--ink);
+}
+.header-actions > button.primary {
+  background: var(--primary-bg);
+  color: var(--control-hover-ink);
+  padding-inline: 14px;
+}
+.header-actions > button.primary:hover:not(:disabled) {
+  background: var(--control-hover);
+  border-color: transparent;
+  color: var(--control-hover-ink);
+}
+.header-actions #language {
+  min-width: 43px;
+  margin: 0;
+}
+.header-actions #theme {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-header #project-picker {
+  border-color: var(--line);
+  border-radius: 7px;
+  font:
+    12px "Segoe UI",
+    "Microsoft YaHei",
+    sans-serif;
+}
+.header-actions .menu-panel {
+  border-radius: 8px;
+  box-shadow: 0 6px 18px var(--shadow-soft);
+}
+.header-actions .menu-panel button {
+  border: 0;
+  border-radius: 5px;
+  box-shadow: none;
+  background: transparent;
+  font:
+    12px "Segoe UI",
+    "Microsoft YaHei",
+    sans-serif;
+}
+.camera-icon svg {
+  display: block;
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.camera-tools > button.camera-icon {
+  display: grid;
+  place-items: center;
+  width: 31px;
+  padding: 0;
+}
+.header-actions #language,
+.header-actions #theme {
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font:
+    500 12px/32px "Segoe UI",
+    "Microsoft YaHei",
+    sans-serif;
+  box-shadow: none;
+}
+.header-actions #language:hover,
+.header-actions #theme:hover {
+  background: var(--subtle);
+  color: var(--ink);
+}
+
+.project-sidebar #archive-project {
+  height: auto;
+  padding: 7px 9px;
+  background: transparent;
+  color: var(--text);
+  box-shadow: none;
+  font:
+    12px "Segoe UI",
+    "Microsoft YaHei",
+    sans-serif;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+.project-sidebar #archive-project:hover:not(:disabled) {
+  background: var(--subtle);
+  color: var(--ink);
+}
+.header-actions > button,
+.header-actions > button.primary,
+.header-actions #language,
+.header-actions #theme {
+  height: 30px;
+  line-height: 30px;
+}
+
+.header-actions #theme {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  min-width: 30px;
+  padding: 4px;
+  overflow: visible;
+  perspective: 160px;
+  border-radius: 50%;
+}
+.theme-coin {
+  position: relative;
+  display: block;
+  width: 20px;
+  height: 20px;
+  transform-style: preserve-3d;
+  transition: transform 0.4s cubic-bezier(0.25, 0.65, 0.3, 1);
+}
+.coin-face {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: 50%;
+  backface-visibility: hidden;
+  border: 1px solid #00000012;
+  box-shadow: inset 0 1px 1px #ffffff38;
+}
+.coin-face.back {
+  transform: rotateY(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-coin {
+    transition: none;
+  }
+}

@@ -1,0 +1,487 @@
+{
+  "schemaVersion": 1,
+  "title": "Objects-12 | Compact classifier",
+  "description": "Fictional model lineage example. Dataset, model names, metrics and conclusions are illustrative; record training changes, fine-tuning origins, discarded experiments and seed replication.",
+  "nodes": [
+    {
+      "id": "start",
+      "date": "2026-01-05",
+      "row": 2,
+      "title": "M0 · Small CNN baseline",
+      "summary": "Fix the data split and evaluation protocol before comparing changes.",
+      "changes": [
+        "128×128 inputs; small residual CNN",
+        "Fixed train/validation split; seed 42"
+      ],
+      "configuration": "Train from scratch; SGD, 90 epochs, batch 64, initial LR 0.05.",
+      "initialization": "Scratch initialization; no external pretrained weights.",
+      "notes": "Confuses visually similar classes. Keep this split fixed in every later comparison.\nAll metrics are illustrative, not real training or hardware results.",
+      "accent": "gray",
+      "status": "complete",
+      "metrics": [
+        {
+          "name": "Demo validation Top-1",
+          "value": "81.2%"
+        },
+        {
+          "name": "Demo macro F1",
+          "value": "80.8%"
+        },
+        {
+          "name": "Demo parameters",
+          "value": "1.9 M"
+        },
+        {
+          "name": "Demo inference latency",
+          "value": "3.8 ms"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "base",
+      "date": "2026-01-07",
+      "row": 2,
+      "title": "M1 · Learning-rate recipe",
+      "summary": "Keep the architecture fixed and address early training instability.",
+      "changes": [
+        "Linear warmup for the first 5 epochs",
+        "Cosine decay afterwards; other settings unchanged"
+      ],
+      "configuration": "M0 architecture; SGD, 90 epochs, batch 64; same data split.",
+      "initialization": "Train from scratch using M0 code and data settings; no weight continuation.",
+      "notes": "More stable convergence; use as the shared baseline. Warmup and schedule changed together, so their effects are not isolated.\nAll metrics are illustrative, not real training or hardware results.",
+      "accent": "blue",
+      "status": "complete",
+      "metrics": [
+        {
+          "name": "Demo validation Top-1",
+          "value": "84.1%"
+        },
+        {
+          "name": "Demo macro F1",
+          "value": "83.7%"
+        },
+        {
+          "name": "Demo parameters",
+          "value": "1.9 M"
+        },
+        {
+          "name": "Demo inference latency",
+          "value": "3.8 ms"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "search",
+      "date": "2026-01-08",
+      "row": 0,
+      "title": "M2A · Mixup ablation",
+      "summary": "Add one augmentation to test separation of similar classes.",
+      "changes": [
+        "Add Mixup with alpha 0.2",
+        "Keep width, epoch count and optimizer fixed"
+      ],
+      "configuration": "M1 recipe; Mixup alpha 0.2; unchanged validation set.",
+      "initialization": "Scratch training; M1 is the configuration baseline.",
+      "notes": "Illustrative macro-F1 improves; the training loss is not directly comparable to the hard-label baseline.\nAll metrics are illustrative, not real training or hardware results.",
+      "accent": "purple",
+      "status": "complete",
+      "metrics": [
+        {
+          "name": "Demo validation Top-1",
+          "value": "85.3%"
+        },
+        {
+          "name": "Demo macro F1",
+          "value": "84.9%"
+        },
+        {
+          "name": "Demo parameters",
+          "value": "1.9 M"
+        },
+        {
+          "name": "Demo inference latency",
+          "value": "3.8 ms"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "layout",
+      "date": "2026-01-08",
+      "row": 2,
+      "title": "M2B · Label smoothing",
+      "summary": "Test overconfidence separately from the Mixup branch.",
+      "changes": [
+        "Label smoothing epsilon 0.1",
+        "No Mixup; otherwise keep M1 settings"
+      ],
+      "configuration": "M1 architecture and recipe; label smoothing epsilon 0.1.",
+      "initialization": "Train from scratch; do not load M2A weights.",
+      "notes": "Only the target distribution changes. The example score is slightly higher; more seeds are needed to assess stability.\nAll metrics are illustrative, not real training or hardware results.",
+      "accent": "cyan",
+      "status": "complete",
+      "metrics": [
+        {
+          "name": "Demo validation Top-1",
+          "value": "84.8%"
+        },
+        {
+          "name": "Demo macro F1",
+          "value": "84.4%"
+        },
+        {
+          "name": "Demo parameters",
+          "value": "1.9 M"
+        },
+        {
+          "name": "Demo inference latency",
+          "value": "3.8 ms"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "export",
+      "date": "2026-01-08",
+      "row": 4,
+      "title": "M2C · Narrower channels",
+      "summary": "Study the tradeoff between width and inference cost.",
+      "changes": [
+        "Reduce stage widths to 0.75×",
+        "Keep the M1 recipe without additional augmentation"
+      ],
+      "configuration": "0.75× channel width; same input size and evaluation batch as M1.",
+      "initialization": "Scratch training; M1 is the reference architecture.",
+      "notes": "The example has fewer parameters and lower latency, but loses accuracy. Keep it as a compact candidate rather than the new accuracy baseline.\nAll metrics are illustrative, not real training or hardware results.",
+      "accent": "green",
+      "status": "complete",
+      "metrics": [
+        {
+          "name": "Demo validation Top-1",
+          "value": "82.9%"
+        },
+        {
+          "name": "Demo macro F1",
+          "value": "82.3%"
+        },
+        {
+          "name": "Demo parameters",
+          "value": "1.2 M"
+        },
+        {
+          "name": "Demo inference latency",
+          "value": "2.5 ms"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "keyboard",
+      "date": "2026-01-10",
+      "row": 0,
+      "title": "M2A-ft · Low-LR fine-tune",
+      "summary": "Continue the Mixup version to inspect late-stage convergence.",
+      "changes": [
+        "Load the best-validation M2A checkpoint",
+        "Train another 20 epochs at LR 0.001"
+      ],
+      "configuration": "M2A architecture and augmentation; 20 epochs, batch 64; otherwise unchanged.",
+      "initialization": "Continue from the best-validation M2A checkpoint.",
+      "notes": "This is weight continuation, shown as a fine-tuning link. Its total training budget is higher than M2A.\nAll metrics are illustrative, not real training or hardware results.",
+      "accent": "slate",
+      "status": "complete",
+      "metrics": [
+        {
+          "name": "Demo validation Top-1",
+          "value": "85.8%"
+        },
+        {
+          "name": "Demo macro F1",
+          "value": "85.3%"
+        },
+        {
+          "name": "Demo parameters",
+          "value": "1.9 M"
+        },
+        {
+          "name": "Demo inference latency",
+          "value": "3.8 ms"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "refine",
+      "date": "2026-01-10",
+      "row": 2,
+      "title": "M2B-ft · Smoothing fine-tune",
+      "summary": "Test whether weaker smoothing helps late in training.",
+      "changes": [
+        "Start from the best M2B weights",
+        "Reduce epsilon from 0.1 to 0.05; fine-tune for 20 epochs"
+      ],
+      "configuration": "M2B architecture; epsilon 0.05; LR 0.001; batch 64.",
+      "initialization": "Best-validation M2B checkpoint.",
+      "notes": "The example changes only slightly. Record the comparison without claiming that less smoothing is always better.\nAll metrics are illustrative, not real training or hardware results.",
+      "accent": "rose",
+      "status": "complete",
+      "metrics": [
+        {
+          "name": "Demo validation Top-1",
+          "value": "85.1%"
+        },
+        {
+          "name": "Demo macro F1",
+          "value": "84.7%"
+        },
+        {
+          "name": "Demo parameters",
+          "value": "1.9 M"
+        },
+        {
+          "name": "Demo inference latency",
+          "value": "3.8 ms"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "same",
+      "date": "2026-01-10",
+      "row": 3,
+      "title": "M2B-ft2 · Frozen-BN ablation",
+      "summary": "Add a same-day comparison of normalization state updates.",
+      "changes": [
+        "Continue M2B-ft weights",
+        "Train 10 epochs with BN running statistics frozen"
+      ],
+      "configuration": "Otherwise match M2B-ft; change only the BN-statistics update rule.",
+      "initialization": "M2B-ft checkpoint; no reinitialization.",
+      "notes": "No clear gain in the example. Do not include frozen BN in the combined recipe; retain this unsuccessful attempt.\nAll metrics are illustrative, not real training or hardware results.",
+      "accent": "amber",
+      "status": "complete",
+      "metrics": [
+        {
+          "name": "Demo validation Top-1",
+          "value": "85.0%"
+        },
+        {
+          "name": "Demo macro F1",
+          "value": "84.6%"
+        },
+        {
+          "name": "Demo parameters",
+          "value": "1.9 M"
+        },
+        {
+          "name": "Demo inference latency",
+          "value": "3.8 ms"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "merge",
+      "date": "2026-01-12",
+      "row": 2,
+      "title": "M3 · Combined training recipe",
+      "summary": "Combine promising changes and retrain a compact candidate.",
+      "changes": [
+        "0.75× width plus Mixup and label smoothing",
+        "Do not include frozen BN from the previous ablation"
+      ],
+      "configuration": "90 epochs, batch 64; fixed validation split; low LR in the final stage.",
+      "initialization": "Train from scratch. Merge links denote combined methods/settings, not weight averaging.",
+      "notes": "The example recovers some accuracy lost by narrowing. Combined changes still need joint ablations to identify their contributions.\nAll metrics are illustrative, not real training or hardware results.",
+      "accent": "blue",
+      "status": "complete",
+      "metrics": [
+        {
+          "name": "Demo validation Top-1",
+          "value": "85.4%"
+        },
+        {
+          "name": "Demo macro F1",
+          "value": "84.9%"
+        },
+        {
+          "name": "Demo parameters",
+          "value": "1.2 M"
+        },
+        {
+          "name": "Demo inference latency",
+          "value": "2.6 ms"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "review",
+      "date": "2026-01-12",
+      "row": 4,
+      "title": "M3-s43 · Seed replication",
+      "summary": "Change only the seed to check whether the result is run-specific.",
+      "changes": [
+        "Reuse the frozen M3 configuration",
+        "Change seed 42 to 43 and retrain"
+      ],
+      "configuration": "Full M3 configuration; same split and evaluation procedure.",
+      "initialization": "Scratch training with seed 43; no continuation from seed 42.",
+      "notes": "The example score is slightly lower than seed 42. Summarize multiple seeds instead of selecting the best run.\nAll metrics are illustrative, not real training or hardware results.",
+      "accent": "green",
+      "status": "complete",
+      "metrics": [
+        {
+          "name": "Demo validation Top-1",
+          "value": "85.0%"
+        },
+        {
+          "name": "Demo macro F1",
+          "value": "84.6%"
+        },
+        {
+          "name": "Demo parameters",
+          "value": "1.2 M"
+        },
+        {
+          "name": "Demo inference latency",
+          "value": "2.6 ms"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "release",
+      "date": "2026-01-14",
+      "row": 2,
+      "title": "M4 · Multi-seed review",
+      "summary": "Freeze the recipe and summarize replications for this round.",
+      "changes": [
+        "Run seeds 42/43/44 with the M3 recipe",
+        "Report mean and variation; retain a place for each checkpoint link"
+      ],
+      "configuration": "Identical training/evaluation settings; all values shown are fictional.",
+      "initialization": "All three runs start from scratch; weights are not mixed across seeds.",
+      "notes": "The illustrative mean is 85.2% with seed variation. Freeze this version before comparing the next distillation study.\nAll metrics are illustrative, not real training or hardware results.",
+      "accent": "cyan",
+      "status": "complete",
+      "metrics": [
+        {
+          "name": "Demo validation Top-1",
+          "value": "85.2 ± 0.2%"
+        },
+        {
+          "name": "Demo macro F1",
+          "value": "84.8 ± 0.2%"
+        },
+        {
+          "name": "Demo parameters",
+          "value": "1.2 M"
+        },
+        {
+          "name": "Demo inference latency",
+          "value": "2.6 ms"
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "future",
+      "date": "2026-01-14",
+      "row": 0,
+      "title": "M5 · Planned distillation",
+      "summary": "Record the next hypothesis; no training results yet.",
+      "changes": [
+        "Use M2A-ft as a frozen teacher",
+        "Train a student from scratch with the compact M3 architecture"
+      ],
+      "configuration": "Distillation temperature and loss weight TBD; keep the split and evaluation protocol fixed.",
+      "initialization": "Planned: M2A-ft teacher and M3 student architecture; scratch student initialization.",
+      "notes": "This version is planned and has no accuracy or latency measurements. Do not report expected gains as results.\nAll metrics are illustrative, not real training or hardware results.",
+      "accent": "purple",
+      "status": "planned",
+      "metrics": [],
+      "links": []
+    }
+  ],
+  "edges": [
+    {
+      "from": "start",
+      "to": "base",
+      "kind": "branch"
+    },
+    {
+      "from": "base",
+      "to": "search",
+      "kind": "branch"
+    },
+    {
+      "from": "base",
+      "to": "layout",
+      "kind": "branch"
+    },
+    {
+      "from": "base",
+      "to": "export",
+      "kind": "branch"
+    },
+    {
+      "from": "search",
+      "to": "keyboard",
+      "kind": "finetune"
+    },
+    {
+      "from": "layout",
+      "to": "refine",
+      "kind": "finetune"
+    },
+    {
+      "from": "refine",
+      "to": "same",
+      "kind": "finetune"
+    },
+    {
+      "from": "keyboard",
+      "to": "merge",
+      "kind": "merge"
+    },
+    {
+      "from": "refine",
+      "to": "merge",
+      "kind": "merge"
+    },
+    {
+      "from": "export",
+      "to": "merge",
+      "kind": "merge"
+    },
+    {
+      "from": "merge",
+      "to": "review",
+      "kind": "branch"
+    },
+    {
+      "from": "merge",
+      "to": "release",
+      "kind": "merge"
+    },
+    {
+      "from": "review",
+      "to": "release",
+      "kind": "merge"
+    },
+    {
+      "from": "keyboard",
+      "to": "future",
+      "kind": "branch"
+    },
+    {
+      "from": "merge",
+      "to": "future",
+      "kind": "merge"
+    }
+  ]
+}
