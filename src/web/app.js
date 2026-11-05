@@ -74,7 +74,7 @@ const canvas = new MapCanvas(select, (id, row) => {
 });
 canvas.onTraining=()=>monitor?.changePage("training");
 canvas.onReturn=()=>monitor?.toggleMap();
-canvas.onLayoutChange=()=>render({fit:true});
+canvas.onLayoutChange=()=>render({fit:true, animateLayout:true});
 canvas.onCreate = (source, draft) => {
   if (leavingProject) return;
   editor.open(project, null, {
@@ -208,6 +208,24 @@ function section(title, collapsed = false) {
   block.append(element(collapsed ? "summary" : "h3", title));
   return block;
 }
+let markdown;
+function renderVersionBrief(target, node) {
+  target.append(element("h1", node.title));
+  const brief = section(t("主要改动"));
+  if (node.changes.length) {
+    const list = element("ul");
+    for (const change of node.changes) list.append(element("li", change));
+    brief.append(list);
+  } else brief.append(element("p", node.summary || "—"));
+  const detail = section(language() === "en" ? "Detailed changes" : "详细改动");
+  if (node.changeDetails) {
+    const article = element("article", undefined, "change-markdown");
+    detail.append(article);
+    markdown ??= import("./vendor/markdown-it.min.js").then(() => globalThis.markdownit({html:false}));
+    markdown.then(renderer => { article.innerHTML = renderer.render(node.changeDetails); });
+  } else detail.append(element("p", language() === "en" ? "No change notes yet." : "暂无详细记录。", "subtle"));
+  target.append(brief, detail);
+}
 function details() {
   monitor?.draw();
   const target = $("inspector");
@@ -215,6 +233,10 @@ function details() {
   const node = project.nodes.find((n) => n.id === selected);
   target.hidden=!node;
   if (!node) return;
+  if (document.body.classList.contains("console-mode")) {
+    renderVersionBrief(target, node);
+    return;
+  }
   const top = element("div", undefined, "inspector-top");
   top.append(
     element("span", node.date, "eyebrow"),
@@ -254,6 +276,7 @@ function details() {
   }
   if (node.configuration) {
     const block = section(t("配置说明"), true);
+    block.classList.add("version-config-note");
     block.append(element("p", node.configuration, "preserve-lines"));
     target.append(block);
   }
@@ -518,6 +541,7 @@ try {
     projectId,
     getMap: () => project,
     getSelected: () => selected,
+    getCompareVersions: () => canvas.compareVersions(),
     selectModel: select,
     readOnly: result.directoryMode,
     updateProgress:(runs,run)=>canvas.progress(runs,run),

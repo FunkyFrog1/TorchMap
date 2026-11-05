@@ -4,20 +4,20 @@ import {
   el,
   tr,
 } from "./monitor-views.js";
-const views = ["training", "validation", "test", "roadmap", "details"];
+const views = ["training", "validation", "test", "roadmap", "config"];
 const titles = () => [
   tr("训练", "Training"),
   tr("验证", "Validation"),
   tr("测试", "Test"),
   tr("模型路线图", "Model lineage"),
-  tr("详情","Details"),
+  tr("配置","Configuration"),
 ];
 const iconPaths = [
   "M3 17h3l3-11 4 14 3-9h5",
   "M5 4h14v16H5z M8 12l3 3 5-6",
   "M8 3h8 M10 3v6l-6 10q0 2 2 2h12q2 0 2-2l-6-10V3 M8 15h8",
   "M3 4h6v5H3z M15 3h6v5h-6z M15 15h6v5h-6z M9 6h6 M11 6v11h4",
-  "M5 3h10l4 4v14H5z M8 10h8 M8 14h8 M8 18h5",
+  "M3 7h6m4 0h8M9 4v6M3 17h11m4 0h3m-7-3v6",
 ];
 function icon(d) {
   const ns = "http://www.w3.org/2000/svg",
@@ -29,22 +29,11 @@ function icon(d) {
   s.append(p);
   return s;
 }
-function readSession(k) {
-  try {
-    return sessionStorage.getItem(k) || "";
-  } catch {
-    return "";
-  }
-}
-function saveSession(k, v) {
-  try {
-    sessionStorage.setItem(k, v);
-  } catch {}
-}
 export function mountMonitor({
   projectId,
   getMap,
   getSelected,
+  getCompareVersions,
   selectModel,
   onMapShown,
   setMiniPage,
@@ -64,12 +53,10 @@ export function mountMonitor({
         : "validation"
       : legacyDataset === "train"
         ? "training"
-        : "details");
-  if (!views.includes(page)) page = "details";
-  let previousPage=page==="roadmap"?"details":page;
+        : "training");
+  if (!views.includes(page)) page = "training";
+  let previousPage=page==="roadmap"?"training":page;
   let runId = q.get("run") ?? "";
-  let linkPeers = q.has("peer") ? q.getAll("peer").filter(Boolean) : null;
-  const comparisons = new Map();
   let snap = null,
     active = null,
     painting = 0,
@@ -86,7 +73,7 @@ export function mountMonitor({
     b.append(icon(iconPaths[i]), el("span"));
     b.onclick = () => changePage(name);
     navButtons.push(b);
-    if (name === "details") nav.prepend(b);
+    if (name === "config") nav.prepend(b);
     else nav.append(b);
   }
   document
@@ -110,8 +97,54 @@ export function mountMonitor({
   workspace.before(dashboard);
   const detailPage=el("section",null,"version-detail-page"),emptyDetail=el("p",null,"monitor-muted");
   detailPage.append($("inspector"),emptyDetail);
-  dashboard.append(main, workspace, detailPage);
+  const configPanel = el("section", null, "run-config");
+
+  let configSignature;
+  const center = el("div", null, "monitor-center");
+  center.append(main, configPanel);
+  const divider = el("div", null, "detail-divider");
+  divider.tabIndex = 0;
+  divider.setAttribute("role", "separator");
+  divider.setAttribute("aria-orientation", "vertical");
+  divider.setAttribute("aria-label", tr("调整详情栏宽度","Resize details"));
+  const sizeKey = "tm-detail-width";
+  function resize(width) {
+    const min = Math.min(180, Math.round(dashboard.clientWidth * 0.32));
+    const max = Math.max(min, Math.round(dashboard.clientWidth * 0.55));
+    const value = Math.round(Math.max(min, Math.min(max, width)));
+    dashboard.style.setProperty("--detail-width", value + "px");
+    divider.setAttribute("aria-valuemin", min);
+    divider.setAttribute("aria-valuemax", max);
+    divider.setAttribute("aria-valuenow", value);
+    return value;
+  }
+  dashboard.append(center, divider, detailPage, workspace);
+  const restoreWidth = () => {
+    if (!divider.hidden && dashboard.clientWidth)
+      resize(Number(localStorage.getItem(sizeKey)) || Math.min(325, dashboard.clientWidth * 0.23));
+  };
+  new ResizeObserver(restoreWidth).observe(dashboard);
+  divider.onpointerdown = e => {
+    if (!e.isPrimary || e.button !== 0) return;
+    e.preventDefault();
+    divider.setPointerCapture(e.pointerId);
+  };
+  divider.onpointermove = e => {
+    if (divider.hasPointerCapture(e.pointerId))
+      resize(dashboard.getBoundingClientRect().right - e.clientX);
+  };
+  divider.onpointerup = e => {
+    if (divider.hasPointerCapture(e.pointerId))
+      localStorage.setItem(sizeKey, divider.getAttribute("aria-valuenow"));
+  };
+  divider.onkeydown = e => {
+    if (!["ArrowLeft","ArrowRight"].includes(e.key)) return;
+    e.preventDefault();
+    localStorage.setItem(sizeKey, resize(detailPage.offsetWidth + (e.key === "ArrowLeft" ? 16 : -16)));
+  };
+  detailPage.setAttribute("aria-label", tr("模型详情", "Model details"));
   document.body.classList.add("console-mode");
+  selectModel(getSelected());
   const get = async (path, signal) => {
     const u = new URL("/api/" + path, location.href);
     u.searchParams.set("project", projectId);
@@ -125,17 +158,11 @@ export function mountMonitor({
   }
   function syncUrl() {
     const u = new URL(location.href);
-    if (!readOnly && page === "details") u.searchParams.delete("view");
-    else u.searchParams.set("view", page);
+    u.searchParams.set("view", page);
     if (runId) u.searchParams.set("run", runId);
     else u.searchParams.delete("run");
     for (const key of ["peer", "compare", "metric", "dataset", "group"])
       u.searchParams.delete(key);
-    if (comparisons.has(runId))
-      for (const id of comparisons.get(runId).length
-        ? comparisons.get(runId)
-        : [""])
-        u.searchParams.append("peer", id);
     u.hash = getSelected() || "";
     history.replaceState(null, "", u);
   }
@@ -149,7 +176,7 @@ export function mountMonitor({
     if(v===page)return;
     const morph=v==="roadmap" || page==="roadmap";
     if(v==="roadmap")previousPage=page;
-    const show=()=>{page=v;dashboard.scrollTop=0;draw();};
+    const show=()=>{page=v;center.scrollTop=0;draw();};
     if(!morph || !document.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches){show();return;}
     if(transition)return;
     const root=document.documentElement;
@@ -193,8 +220,12 @@ export function mountMonitor({
     document.body.dataset.page = page;
     workspace.hidden = !isMap;
     setMiniPage(isMap);
-    main.hidden = isMap || page==="details";
-    detailPage.hidden=page!=="details";
+    center.hidden = isMap;
+    main.hidden = isMap || page==="config";
+    configPanel.hidden = page !== "config";
+    divider.hidden = isMap;
+    detailPage.hidden=isMap;
+    if (!isMap && wasMap) restoreWidth();
 
     emptyDetail.hidden=Boolean(selected);
     emptyDetail.textContent=tr("请先在模型路线图中选择卡片。","Select a model on the map first.");
@@ -220,37 +251,16 @@ export function mountMonitor({
       own[0];
 
     if (snap) runId = r?.id ?? "";
-    const parentIds = map.edges
-      .filter((e) => e.to === selected)
-      .map((e) => e.from);
     const ck = new Map((snap?.checkpoints ?? []).map((c) => [c.id, c]));
     const candidates = runs.filter((x) => x.kind === "train" && x.id !== r?.id);
     const sourceRun = ck.get(r?.checkpointId)?.runId;
-    const defaults = parentIds
-      .map((id) => {
-        const parentRuns = candidates.filter((x) => x.versionId === id);
-        return (
-          parentRuns.find((x) => x.id === sourceRun) ||
-
-          parentRuns[0]
-        )?.id;
-      })
-      .filter(Boolean);
-    const storageKey = "tm-compare:" + projectId + ":" + runId;
-    if (snap && r && !comparisons.has(runId)) {
-      if (linkPeers !== null) {
-        comparisons.set(runId, linkPeers);
-        linkPeers = null;
-      } else {
-        let saved;
-        try {
-          saved = JSON.parse(readSession(storageKey));
-        } catch {}
-        if (Array.isArray(saved)) comparisons.set(runId, saved);
-      }
+    const peers = [];
+    for (const version of new Set(getCompareVersions())) {
+      const ownRuns = candidates.filter(x => x.versionId === version && version !== selected);
+      const peer = ownRuns.find(x => x.id === sourceRun)
+        ?? ownRuns.find(x => x.status === "running") ?? ownRuns[0];
+      if (peer) peers.push(peer);
     }
-    const ids = comparisons.get(runId) ?? defaults;
-    const peers = candidates.filter((x) => ids.includes(x.id));
     if (snap) syncUrl();
     if (isMap && !wasMap) onMapShown();
     wasMap = isMap;
@@ -258,7 +268,21 @@ export function mountMonitor({
       updateProgress(runs, runId);
       return;
     }
-    if(page==="details")return;
+    if (page === "config") {
+      const note = map.nodes.find(n => n.id === selected)?.configuration;
+      const configs = r ? [r, ...peers].map(run => ({
+        name: labelRun(run), data: run.config, source: run.configSource, yaml: run.sourceYaml
+      })) : [];
+      const signature = JSON.stringify([selected, note, Boolean(snap), configs]);
+      if (signature !== configSignature) {
+        configSignature = signature;
+        configPanel.replaceChildren();
+        if (note) configPanel.append(el("h3", tr("配置说明","Configuration notes")), el("p",note,"preserve-lines"));
+        if (configs.length) renderConfig(configPanel, configs);
+        else configPanel.append(el("p", !selected ? emptyDetail.textContent : !snap ? tr("读取中…","Loading…") : tr("尚无已登记的训练 Run","No registered training run."), "monitor-muted"));
+      }
+      return;
+    }
     const next = [selected, runId, page, ...peers.map((p) => p.id)].join("|");
     if (next !== context) {
       body.replaceChildren();
@@ -367,4 +391,44 @@ export function mountMonitor({
   const toggleMap=()=>changePage(page==="roadmap"?previousPage:"roadmap");
   document.addEventListener("keydown",e=>{if(e.key==="Escape" && page==="roadmap" && !document.querySelector("dialog[open]"))changePage(previousPage);});
   return {draw,changePage,toggleMap,page:()=>page};
+}
+
+function renderConfig(panel, configs) {
+  const primary = configs[0];
+  panel.append(el("h3", tr("训练配置", "Training configuration")));
+  function section(title, content) {
+    const group = el("details");
+    group.append(el("summary", title), content);
+    panel.append(group);
+  }
+  function fields(value, prefix = [], result = new Map()) {
+    if (value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length) {
+      for (const [name, child] of Object.entries(value))
+        fields(child, [...prefix, name], result);
+    } else result.set(JSON.stringify(prefix), JSON.stringify(value));
+    return result;
+  }
+  const rows = configs.map(c => c.data == null ? new Map() : fields(c.data));
+  const keys = new Set(rows.flatMap(row => [...row.keys()]));
+  const missing = tr("未记录", "Unrecorded");
+  if (configs.length > 1 && keys.size) {
+    const table = el("table");
+    const head = table.createTHead().insertRow();
+    for (const title of [tr("参数", "Parameter"), ...configs.map(c => c.name)])
+      head.append(el("th", title));
+    const body = table.createTBody();
+    for (const key of [...keys].sort()) {
+      const values = rows.map(row => row.get(key) ?? missing);
+      if (values.every(v => v === values[0])) continue;
+      const row = body.insertRow();
+      for (const text of [JSON.parse(key).join("."), ...values]) row.insertCell().textContent = text;
+    }
+    section(tr("配置差异", "Configuration differences") + " · " + body.rows.length,
+      body.rows.length ? table : el("p", tr("已记录字段相同", "Recorded fields match")));
+  }
+  if (primary.data != null) {
+    const title = primary.source === "config.json" ? tr("实际运行配置", "Resolved configuration") : tr("已登记字段（完整性未知）", "Registered fields (coverage unknown)");
+    section(title, el("pre", JSON.stringify(primary.data, null, 2)));
+  } else panel.append(el("p", tr("未记录实际运行配置", "Resolved configuration unavailable")));
+  if (primary.yaml != null) section("config.yaml", el("pre", primary.yaml));
 }

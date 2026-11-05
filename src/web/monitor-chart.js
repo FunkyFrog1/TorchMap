@@ -146,6 +146,12 @@ export function curve(series, xLabel, empty, key, translate, actions) {
     redraw([dataX(Math.min(x,a)),dataX(Math.max(x,a)),dataY(Math.max(y,b)),dataY(Math.min(y,b))]);};
   plot.onlostpointercapture=plot.onpointercancel=()=>{start=null;selection.remove();};
   plot.ondblclick=()=>redraw(null);
-  const footer=document.createElement("div");footer.className="chart-footer";footer.append(legend);box.append(plot,footer);
+  const footer=document.createElement("div");footer.className="chart-footer";footer.append(legend);
+  if (series.length > 3) {
+    footer.classList.add("scrollable-legend");
+    legend.tabIndex = 0;
+    legend.setAttribute("aria-label", translate("可滚动的曲线图例", "Scrollable chart legend"));
+  }
+  box.append(plot,footer);
   return box;
 }

@@ -366,7 +366,7 @@ html:has(.console-mode){background:#f5f8f9}
 body.console-mode{margin:20px auto;--outer-x:18px;padding:0 var(--outer-x);max-width:1600px;height:auto;min-height:calc(100dvh - 40px);overflow:visible;background:#fff;color:#193f4d;display:grid;grid-template-columns:188px minmax(0,1fr);grid-template-rows:auto;align-items:start;gap:20px;font-family:"Segoe UI","Microsoft YaHei",sans-serif}
 .console-mode .project-sidebar{grid-row:1;align-self:start;position:sticky;top:20px;display:flex;flex-direction:column;gap:0;height:calc(100dvh - 40px);min-height:350px;margin:0;padding:12px 12px 12px 0;background:white;border:0;border-right:1px solid #dce8ec;border-radius:0;box-shadow:none}
 .console-mode .project-sidebar .brand{margin:3px 0 24px;color:#204855;font:500 28px/1.08 Georgia,"Times New Roman",serif;letter-spacing:-.045em}
-.console-mode .project-sidebar .brand-name{font:inherit}.project-dashboard{min-width:0;overflow-x:clip}
+.console-mode .project-sidebar .brand-name{font:inherit;font-size:24px}.project-dashboard{min-width:0;overflow-x:clip}
 .console-mode .project-sidebar .sidebar-label,.monitor-pickers small{font:12px/1.5 "Segoe UI","Microsoft YaHei",sans-serif;margin:0 0 6px;color:#718b94}
 .console-mode .project-sidebar select{width:100%;max-width:100%;height:auto;min-height:35px;padding:9px 22px 9px 8px;background:#fff;border:1px solid #a9c6cf;border-radius:2px;color:#224b58;font:400 12px Consolas,"Microsoft YaHei",sans-serif}
 .monitor-pickers{display:grid;gap:10px;margin:12px 0 20px}.monitor-nav{margin:0;gap:5px}.monitor-nav button{display:block;min-height:39px;padding:9px 10px;border-radius:3px;font:400 12px/1.5 "Segoe UI","Microsoft YaHei",sans-serif;color:#416671}.monitor-nav button svg{display:none}.monitor-nav button:hover{background:#edf6f9;border-color:#c0dce4}.monitor-nav button[aria-current=page]{box-shadow:none}
@@ -386,9 +386,7 @@ body.console-mode{margin:20px auto;--outer-x:18px;padding:0 var(--outer-x);max-w
 body[data-page="roadmap"] .monitor-heading {display:none}
 body[data-page="roadmap"] .map-panel {height:calc(100dvh - 40px)}
 .monitor-nav button svg {display:inline-block;vertical-align:middle;margin-right:9px}
-.experiment-node .node-header {padding-right:57px;background:color-mix(in srgb,var(--accent) 52%,white);filter:saturate(1.15)}
-.sota-toggle {position:absolute;z-index:2;width:44px;height:22px;padding:0;font:600 10px Consolas,monospace;color:#526971;border:1px solid #95adb4;background:#fff;border-radius:3px}
-.sota-toggle[aria-pressed=true]{color:#714809;border-color:#bc9449;background:#ffdfa0}
+.experiment-node .node-header {padding-right:34px;background:color-mix(in srgb,var(--accent) 52%,white);filter:saturate(1.15)}
 .card-progress {display:grid;gap:4px;margin-top:6px}
 .progress-line {display:grid;grid-template-columns:34px 1fr 44px;gap:5px;align-items:center}
 .progress-track {height:6px;background:#e8eff0;overflow:hidden;border-radius:2px}
@@ -414,7 +412,11 @@ body.console-mode{--outer-y:20px;box-sizing:border-box;height:calc(100dvh - 2 * 
 @media(max-width:1000px){body.console-mode{display:flex;flex-direction:column;gap:0}.console-mode .project-sidebar{flex:none;height:auto}.console-mode .project-dashboard{flex:1;min-height:0;width:100%}}
 @media(max-width:680px){body.console-mode{--outer-y:13px}}
 
-.scalar-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:12px}
+.metric-browser{container:metrics / inline-size}
+.scalar-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+/* Reserve 320px per chart; the resizable inspector shares this viewport. */
+@container metrics (min-width:650px){.scalar-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container metrics (min-width:980px){.scalar-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .metric-card{align-self:start}.metric-card h2{overflow-wrap:anywhere}.metric-card .monitor-chart svg{height:auto;min-height:125px}.metric-card .monitor-muted{display:block;margin-bottom:6px}
 .map-run-controls{display:flex;align-items:center;gap:8px}.map-run-controls label{display:flex;align-items:center;gap:4px}.map-run-controls select{max-width:145px}
 .map-compare>summary{cursor:pointer;color:var(--ink);font-size:12px}.map-compare-options{position:absolute;top:45px;right:8px;z-index:8;background:white;border:1px solid var(--border);padding:9px;max-width:90%;max-height:40vh;overflow:auto;box-shadow:0 3px 10px #193f4d18}.map-compare-options label{display:flex;padding:4px}.map-toolbar .map-compare-options input{min-width:0;width:auto}.map-compare-options button{margin:0 0 6px}.monitor-content{padding-top:8px}
@@ -437,14 +439,11 @@ body.console-mode{--outer-y:20px;box-sizing:border-box;height:calc(100dvh - 2 * 
 .plot-tooltip{position:static;pointer-events:none;white-space:pre-wrap;overflow-wrap:anywhere;color:#395a69;min-height:1.4em;font:11px/1.4 Consolas,monospace;margin-left:auto}
 .plot-guides{fill:none;stroke:#647e89;stroke-width:1;stroke-dasharray:4 3}
 
-.scalar-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .monitor-panel.metric-card{padding:10px 12px}
 .metric-heading{gap:5px}.metric-tools,.metric-tools .chart-actions{gap:3px}
 .metric-card .monitor-muted{margin:1px 0 2px;font-size:10px}
 .metric-card .monitor-legend{margin-top:2px;gap:1px}
 .metric-card .monitor-chart>svg{width:100%;height:auto;aspect-ratio:600/288;min-height:0}
-@media(max-width:1100px){.scalar-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:680px){.scalar-grid{grid-template-columns:minmax(0,1fr)}}
 
 /* Shared report typography, with aligned numeric columns. */
 body.console-mode {--report-font:Georgia,"Times New Roman","Songti SC",SimSun,serif;font-family:var(--report-font)}
@@ -462,7 +461,21 @@ body.console-mode {--report-font:Georgia,"Times New Roman","Songti SC",SimSun,se
 
 .console-mode .metric-card .monitor-chart :is(text,.plot-tooltip){font-family:Consolas,"Liberation Mono",monospace;font-variant-numeric:tabular-nums}
 
-.metric-card .chart-footer .monitor-legend{padding-inline-start:14px}
+.metric-card .chart-footer .monitor-legend {
+  width: 100%;
+  min-width: 0;
+  padding-inline-start: 14px;
+  color: #111;
+  --legend-row: 1.4em;
+  height: calc(3 * var(--legend-row) + 2px);
+  grid-auto-rows: var(--legend-row);
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  row-gap: 1px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.metric-card .monitor-legend span { white-space: nowrap; overflow: hidden; }
 .metric-card .monitor-chart text.plot-tooltip{fill:#395a69;font-size:12px;stroke:#fafcfd;stroke-width:3px;stroke-linejoin:round;paint-order:stroke fill}
 
 /* Sidebar selection */
@@ -491,7 +504,6 @@ body.console-mode{--page:#f2f2f0;--panel:#fff;--canvas:#fafaf9;--ink:#282a2d;--i
 .console-mode .monitor-legend,.console-mode .monitor-muted{color:#73767c}
 .console-mode .map-toolbar :is(button,input,select),.console-mode .metric-tools button,.console-mode .brief-open{background:#fff;border-color:#dedfdf;color:#49728f}
 .console-mode .progress-track{background:#e7e8e6}.console-mode .progress-track i{background-color:#49728f}.console-mode .progress-line:first-child i{background-color:#c97e44}
-.console-mode .sota-toggle[aria-pressed=true]{background:#fbefe5;color:#884e24;border-color:#c97e44}
 /* Continuous surface behind every project view. */
 .console-mode .project-dashboard{box-sizing:border-box;background:#fff;border:1px solid #dedfdf;border-radius:3px;padding-inline:12px}
 @media(max-width:680px){.console-mode .project-dashboard{padding-inline:8px}}
@@ -500,9 +512,6 @@ body.console-mode{--page:#f2f2f0;--panel:#fff;--canvas:#fafaf9;--ink:#282a2d;--i
 @media(min-width:1001px){body.console-mode{max-width:none;width:100%;--outer-x:clamp(10px,0.8vw,20px);padding-inline:var(--outer-x);grid-template-columns:204px minmax(0,1fr)}.console-mode .project-sidebar{padding-inline:14px}.console-mode .project-sidebar .brand{max-width:100%}}
 @media(max-width:1000px){.console-mode .project-sidebar{padding-inline:10px}}
 
-.console-mode .sota-toggle{width:23px;height:23px;display:grid;place-items:center;background:transparent;border:0;color:#52636b}
-.console-mode .sota-toggle svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6}
-.console-mode .sota-toggle[aria-pressed=true]{color:#a6622c;background:transparent}.console-mode .sota-toggle[aria-pressed=true] svg{fill:#e5ac64}
 
 /* The map is the only visible pane in this view. */
 body.console-mode[data-page="roadmap"] .workspace{box-sizing:border-box;height:100%;min-height:0;padding-block:var(--outer-y);display:flex;flex-direction:column}
@@ -555,3 +564,38 @@ html.map-morph::view-transition-group(tensormap-board){animation-duration:350ms;
 html.map-morph::view-transition-old(tensormap-board),html.map-morph::view-transition-new(tensormap-board){height:100%;width:100%;object-fit:fill;mix-blend-mode:normal}
 html.map-morph::view-transition-old(root),html.map-morph::view-transition-new(root){animation-duration:120ms}
 .map-close{font-size:17px;line-height:1}
+
+.console-mode .map-panel .viewport{background-color:#eceeeb}
+
+.compare-toggle{position:absolute;z-index:2;width:23px;height:23px;padding:3px;border:0;background:transparent;color:#45555a;display:grid;place-items:center}
+.compare-toggle svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6}
+.compare-toggle rect{fill:#fff}
+.compare-toggle path{visibility:hidden}
+.compare-toggle[aria-pressed=true] rect{fill:currentColor}
+.compare-toggle[aria-pressed=true] path{visibility:visible;stroke:white}
+
+.scrollable-legend .monitor-legend{overscroll-behavior:contain}
+.scrollable-legend .monitor-legend::-webkit-scrollbar{width:3px}
+.scrollable-legend .monitor-legend::-webkit-scrollbar-track{background:#efefed;border-radius:5px}
+.scrollable-legend .monitor-legend::-webkit-scrollbar-thumb{background:#999d9b;border-radius:5px}
+.scrollable-legend .monitor-legend::-webkit-scrollbar-button{display:none}
+
+.run-config{margin:20px 0;min-width:0}.run-config details{margin:10px 0;overflow-x:auto}.run-config summary{cursor:pointer}
+.run-config table{margin-top:8px;border-collapse:collapse;font-size:13px}.run-config :is(th,td){padding:5px 12px;text-align:left;border-bottom:1px solid #ddd;vertical-align:top}
+.run-config pre{font:12px/1.55 Consolas,monospace;overflow:auto}
+
+.console-mode .version-detail-page .version-config-note{display:none}
+.console-mode .version-detail-page{box-sizing:border-box;height:100%;overflow:auto;overscroll-behavior:contain}
+.console-mode .version-detail-page .inspector{position:static;max-width:78ch;overflow-wrap:anywhere}
+body.console-mode .project-dashboard{display:grid;grid-template-columns:minmax(0,1fr) clamp(210px,19vw,325px);grid-template-rows:minmax(0,1fr);overflow:hidden;scrollbar-gutter:auto;padding-inline:0}
+.monitor-center{min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain;padding-inline:12px}
+.console-mode .version-detail-page{grid-column:2;grid-row:1;min-width:0;border-left:1px solid #dedfdf}
+@media(max-width:680px){body.console-mode .project-dashboard{grid-template-columns:minmax(0,1fr) minmax(110px,32%)}.monitor-center{padding-inline:6px}.console-mode .version-detail-page .inspector{padding-inline:6px}}
+
+body.console-mode .project-dashboard{grid-template-columns:minmax(0,1fr) 8px var(--detail-width,23%)}
+.console-mode .version-detail-page{grid-column:3;border:0}
+.detail-divider{grid-column:2;grid-row:1;cursor:col-resize;touch-action:none;background:linear-gradient(90deg,transparent 3px,#dedfdf 3px 4px,transparent 4px)}
+.detail-divider:is(:hover,:focus-visible,:active){background:#e4e5e3}
+.change-markdown{font-size:14px;line-height:1.6;overflow-wrap:anywhere;overflow-x:auto}
+.change-markdown :is(h1,h2,h3){font-size:1.06em}.change-markdown pre{overflow-x:auto;background:#f4f4f2;padding:8px}
+.change-markdown table{border-collapse:collapse}.change-markdown :is(th,td){border:1px solid #ddd;padding:3px 6px}.change-markdown img{max-width:100%}

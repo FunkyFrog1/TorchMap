@@ -17,7 +17,7 @@ Date columns represent existing model dates, not a continuous calendar scale. Be
 
 Models on the same date share a column. Drag a **card vertically** to set its lane; dropping on an occupied lane swaps the two cards. Positions save and survive reopening. Change the date in the editor to move columns. Adding a model preserves existing saved lanes. Undo/redo covers edits, moves and new models within the current project session.
 
-Select a card to highlight all upstream models; click blank space to restore all colors. Drag blank space to pan and scroll to zoom. The four-corner icon fits the full map; the crosshair focuses the selected card. Both have hover labels. The small line legend floats at the lower right.
+Select a card to highlight all upstream models; click blank space to restore all colors. Pan in any direction with a two-finger trackpad scroll. Pinch to zoom around the pointer. With a mouse, drag blank space to pan and use a notched wheel to zoom; Ctrl+scroll also works with precision wheels. The four-corner icon fits the full map; the crosshair focuses the selected card. Both have hover labels. The small line legend floats at the lower right.
 
 The model lineage is a **directed acyclic graph (DAG)**. Multiple upstream models are allowed; cycles are rejected. The editor excludes self and descendants from upstream choices.
 

@@ -79,6 +79,7 @@ export function normalizeProject(raw) {
       row: Number.isInteger(node.row) ? node.row : undefined,
       id: String(node.id),
       title: String(node.title).trim(),
+      ...(typeof node.creator === "string" && node.creator.trim() ? { creator: node.creator.trim() } : {}),
       date,
       accent: Object.hasOwn(COLORS, node.accent) ? node.accent : "blue",
       status: Object.hasOwn(STATUS, node.status) ? node.status : "recorded",
@@ -86,6 +87,7 @@ export function normalizeProject(raw) {
       configuration: String(node.configuration || ""),
       initialization: String(node.initialization || ""),
       notes: String(node.notes || ""),
+      ...(node.changeDetails ? {changeDetails: String(node.changeDetails)} : {}),
       changes: Array.isArray(node.changes) ? node.changes.map(String) : [],
       metrics: Array.isArray(node.metrics)
         ? node.metrics.map((m) => ({

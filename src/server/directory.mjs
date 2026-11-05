@@ -72,7 +72,8 @@ async function loadDirectory(dir, project) {
         v = await manifest(base, "version.json");
       if (!v) continue;
       if (v.date !== date) throw Error("Version date mismatch: " + name);
-      nodes.push({ ...v, row: project.layout?.[v.id]?.row });
+      const changeDetails = await optional(() => readFile(path.join(base, "changes.md"), "utf8"), "");
+      nodes.push({ ...v, changeDetails, row: project.layout?.[v.id]?.row });
       for (const p of v.parents ?? []) {
         const rel = typeof p === "string" ? { id: p } : p;
         edges.push({
@@ -88,11 +89,16 @@ async function loadDirectory(dir, project) {
           r = await manifest(rd, "run.json");
         if (!r) continue;
         if (r.version_id !== v.id) throw Error("Run version mismatch: " + r.id);
+        const resolved = await manifest(rd, "config.json");
+        const sourceYaml = await optional(() => readFile(path.join(rd, "config.yaml"), "utf8"), null);
         const stamp = Date.parse(r.last_seen);
         insert(runs, r.id, {
           id: r.id,
           versionId: v.id,
           kind: "train",
+          config: resolved ?? r.config ?? null,
+          configSource: resolved !== null ? "config.json" : r.config != null ? "run.json" : null,
+          sourceYaml,
           folder,
           total: r.total,
           epoch:r.epoch,

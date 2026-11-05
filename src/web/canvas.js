@@ -47,8 +47,15 @@ export class MapCanvas {
     this.panY = 0;
     this.fitted = false;
     this.query = "";
+    this.viewport.addEventListener("dblclick", (event) => {
+      if (!event.target.closest("button, .map-legend")) {
+        clearTimeout(this.blankClickTimer);
+        this.onReturn?.();
+      }
+    });
+    this.viewport.addEventListener("pointerdown", () => clearTimeout(this.blankClickTimer), true);
     this.viewport.addEventListener("pointerdown", (event) => {
-      if (event.button !== 0 || event.target.closest("button")) return;
+      if (event.button !== 0 || event.target.closest("button, .map-legend")) return;
       this.drag = {
         x: event.clientX,
         y: event.clientY,
@@ -57,14 +64,15 @@ export class MapCanvas {
         moved: false,
       };
       this.viewport.setPointerCapture(event.pointerId);
-      this.viewport.classList.add("is-panning");
     });
     this.viewport.addEventListener("pointermove", (event) => {
       if (!this.drag) return;
       if (
         Math.hypot(event.clientX - this.drag.x, event.clientY - this.drag.y) > 4
-      )
+      ) {
         this.drag.moved = true;
+        this.viewport.classList.add("is-panning");
+      }
       this.panX = this.drag.panX + event.clientX - this.drag.x;
       this.panY = this.drag.panY + event.clientY - this.drag.y;
       this.applyCamera();
@@ -74,23 +82,14 @@ export class MapCanvas {
         event.type === "pointerup" && this.drag && !this.drag.moved;
       this.drag = null;
       this.viewport.classList.remove("is-panning");
-      if (blankClick) this.onSelect(null);
+      if (blankClick && this.selected) {
+        // A second press cancels deselection before the double-click closes the map.
+        this.blankClickTimer = setTimeout(() => this.onSelect(null), 650);
+      }
     };
     this.viewport.addEventListener("pointerup", stop);
     this.viewport.addEventListener("pointercancel", stop);
-    this.viewport.addEventListener(
-      "wheel",
-      (event) => {
-        event.preventDefault();
-        const rect = this.viewport.getBoundingClientRect();
-        this.zoom(
-          this.scale * (event.deltaY < 0 ? 1.12 : 1 / 1.12),
-          event.clientX - rect.left,
-          event.clientY - rect.top,
-        );
-      },
-      { passive: false },
-    );
+    this.bindScrollGestures();
     document.querySelector("#fit").addEventListener("click", () => this.fit());
     document
       .querySelector("#focus")
@@ -103,7 +102,63 @@ export class MapCanvas {
     }).observe(this.viewport);
   }
 
-  render(project, selected, { fit = false } = {}) {
+  bindScrollGestures() {
+    const viewport = this.viewport;
+    let lastPan = -Infinity;
+    let nativePinchScale = null;
+    const zoomAt = (event, scale) => {
+      const rect = viewport.getBoundingClientRect();
+      this.zoom(scale, event.clientX - rect.left, event.clientY - rect.top);
+    };
+    viewport.addEventListener("wheel", event => {
+      event.preventDefault();
+      clearTimeout(this.blankClickTimer);
+      if (nativePinchScale !== null) return;
+      const {deltaMode, deltaX, deltaY} = event;
+      const unit = deltaMode === 1 ? 16 : deltaMode === 2 ? viewport.clientHeight : 1;
+      if (event.ctrlKey || event.metaKey) {
+        zoomAt(event, this.scale * Math.exp(-deltaY * unit * 0.01));
+        return;
+      }
+
+      // WheelEvent has no device type. Recognize common discrete wheel ticks;
+      // keep continuous pixel deltas (including momentum) on the pan path.
+      const magnitude = Math.abs(deltaY);
+      const discrete = deltaMode !== 0 ||
+        (magnitude > 0 && (magnitude % 100 === 0 || magnitude % 120 === 0));
+      if (discrete && !deltaX && !event.shiftKey && event.timeStamp - lastPan > 180) {
+        zoomAt(event, this.scale * Math.pow(1.12, -Math.sign(deltaY)));
+        return;
+      }
+      lastPan = event.timeStamp;
+      if (event.shiftKey && !deltaX) this.panX -= deltaY * unit;
+      else {
+        this.panX -= deltaX * unit;
+        this.panY -= deltaY * unit;
+      }
+      this.applyCamera();
+    }, {passive: false});
+
+    // Safari can send native gestures instead of Ctrl-wheel for a trackpad pinch.
+    viewport.addEventListener("gesturestart", event => {
+      event.preventDefault();
+      clearTimeout(this.blankClickTimer);
+      nativePinchScale = this.scale;
+    }, {passive: false});
+    viewport.addEventListener("gesturechange", event => {
+      event.preventDefault();
+      if (nativePinchScale !== null) zoomAt(event, nativePinchScale * event.scale);
+    }, {passive: false});
+    viewport.addEventListener("gestureend", event => {
+      event.preventDefault();
+      nativePinchScale = null;
+    }, {passive: false});
+  }
+
+  render(project, selected, { fit = false, animateLayout = false } = {}) {
+    const previous = animateLayout && this.viewport.clientWidth &&
+      !matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? this.screenLayout() : null;
     this.cancelBranchDrag?.();
     this.project = project;
     this.selected = selected;
@@ -116,7 +171,7 @@ export class MapCanvas {
     this.cards.clear();
     this.paths = [];
     this.world
-      .querySelectorAll(".experiment-node,.date-column,.branch-handle,.sota-toggle")
+      .querySelectorAll(".experiment-node,.date-column,.branch-handle,.compare-toggle")
       .forEach((n) => n.remove());
     this.wires.replaceChildren();
     Object.assign(this.world.style, {
@@ -176,7 +231,15 @@ export class MapCanvas {
       card.classList.toggle("is-root", parents === 0);
       card.setAttribute("aria-label", node.title + " · " + t("查看版本详情"));
       const header = element("span", "node-header");
-      header.append(element("strong", "node-title", node.title));
+      if (node.creator) {
+        const author = element("span", "node-creator", node.creator);
+        author.title = t("创建者") + " · " + node.creator;
+        author.dir = "auto";
+        header.append(author);
+      }
+      const title = element("strong", "node-title", node.title);
+      title.title = node.title;
+      header.append(title);
       const body = element("span", "node-body");
       body.append(
         element(
@@ -238,32 +301,79 @@ export class MapCanvas {
         this.onSelect(node.id);
       });
       card.addEventListener("dblclick", () => {
-        const dx=this.panX+(node.x+this.layout.nodeWidth/2)*this.scale-this.viewport.clientWidth/2;
-        const dy=this.panY+(node.y+this.layout.nodeHeight/2)*this.scale-this.viewport.clientHeight/2;
-        if(this.armed===node.id && Math.abs(dx)<2 && Math.abs(dy)<2){
-          this.keepMini=true;
-          this.onTraining?.();
-        }else{
-          this.focus(node.id);
-          this.armed=node.id;
-        }
+        this.keepMini = true;
+        this.onTraining?.();
       });
       this.world.append(card);
       const handle = this.branchHandle(node);
       this.world.append(handle);
-      const sota=element("button","sota-toggle");
-      const star=svg("svg",{viewBox:"0 0 24 24","aria-hidden":"true"});star.append(svg("path",{d:"m12 3 2.8 5.8 6.4.9-4.6 4.5 1.1 6.4-5.7-3-5.7 3 1.1-6.4-4.6-4.5 6.4-.9z"}));sota.append(star);
-      sota.type="button";sota.title=(language()==="en"?"Star · ":"星标 · ")+node.title;sota.setAttribute("aria-label",sota.title);
-      const marked=()=>this.prefs.sota?.includes(node.id)??false;
-      sota.setAttribute("aria-pressed",String(marked()));sota.style.left=(node.x+220)+"px";sota.style.top=(node.y+6)+"px";
-      sota.onclick=()=>{const marks=new Set(this.prefs.sota||[]);if(marked())marks.delete(node.id);else marks.add(node.id);
-        this.prefs.sota=[...marks];localStorage.setItem(this.prefKey,JSON.stringify(this.prefs));sota.setAttribute("aria-pressed",String(marked()));};
-      this.world.append(sota);this.cards.set(node.id,{card,handle,sota});
+      const compare = element("button", "compare-toggle");
+      compare.type = "button";
+      compare.title = (language() === "en" ? "Compare · " : "加入对比 · ") + node.title;
+      compare.setAttribute("aria-label", compare.title);
+      const box = svg("svg", {viewBox:"0 0 20 20", "aria-hidden":"true"});
+      box.append(svg("rect", {x:2,y:2,width:16,height:16,rx:3}), svg("path", {d:"m5 10 3 3 7-7"}));
+      compare.append(box);
+      compare.style.left = (node.x + 220) + "px";
+      compare.style.top = (node.y + 6) + "px";
+      compare.onclick = () => {
+        const ids = new Set(this.compareVersions());
+        if (!ids.delete(node.id)) ids.add(node.id);
+        this.prefs.comparisonsByVersion ??= {};
+        this.prefs.comparisonsByVersion[this.selected] = [...ids];
+        localStorage.setItem(this.prefKey, JSON.stringify(this.prefs));
+        compare.setAttribute("aria-pressed", String(ids.has(node.id)));
+      };
+      this.world.append(compare);
+      this.cards.set(node.id, {card, handle, compare});
     }
     document.querySelector("#empty-map").hidden = project.nodes.length > 0;
     this.highlight();
     if (fit || !this.fitted) this.fit();
     else this.applyCamera();
+    if (previous) this.animateLayout(previous);
+  }
+
+  screenLayout() {
+    // Capture displayed geometry, including any unfinished layout transition.
+    const cards = new Map();
+    for (const [id, {card, compare}] of this.cards)
+      cards.set(id, [card.getBoundingClientRect(), compare.getBoundingClientRect()]);
+    const wires = this.paths.map(({path}) => {
+      const length = path.getTotalLength(), matrix = path.getScreenCTM();
+      return Array.from({length: 33}, (_, i) =>
+        path.getPointAtLength(length * i / 32).matrixTransform(matrix));
+    });
+    return {cards, wires};
+  }
+
+  animateLayout(previous) {
+    const next = this.screenLayout();
+    const timing = {duration: 420, easing: "cubic-bezier(.35,0,.2,1)"};
+    for (const [id, {card, compare}] of this.cards) {
+      [card, compare].forEach((el, i) => {
+        const from = previous.cards.get(id)?.[i], to = next.cards.get(id)[i];
+        if (!from?.width || !to.width) return;
+        const dx = (from.x + from.width/2 - to.x - to.width/2) / this.scale;
+        const dy = (from.y + from.height/2 - to.y - to.height/2) / this.scale;
+        el.animate([
+          {translate: dx + "px " + dy + "px", scale: String(from.width/to.width)},
+          {translate: "0px 0px", scale: "1"}
+        ], timing);
+      });
+    }
+    // Both layouts can use different route commands. Equal-length samples
+    // morph between the two routes and finish on the original smooth SVG.
+    const inverse = this.wires.getScreenCTM().inverse();
+    const pathValue = points => 'path("M' + points.map(point => {
+      const p = point.matrixTransform(inverse);
+      return p.x.toFixed(2) + " " + p.y.toFixed(2);
+    }).join(" L") + '")';
+    this.paths.forEach(({path}, i) => path.animate([
+      {d: pathValue(previous.wires[i])}, {d: pathValue(next.wires[i])}
+    ], timing));
+    for (const column of this.world.querySelectorAll(".date-column"))
+      column.animate([{opacity: 0}, {opacity: 1}], timing);
   }
 
   branchHandle(node) {
@@ -426,8 +536,9 @@ export class MapCanvas {
       const maxY=Math.max(0,window.innerHeight-button.offsetHeight);
       function axis(value,limit){
         const inset=Math.min(12,limit/2);
-        if(settle && value<=36)return inset;
-        if(settle && limit-value<=36)return limit-inset;
+        const snapDistance=Math.min(72,limit/2);
+        if(settle && value<=snapDistance)return inset;
+        if(settle && limit-value<=snapDistance)return limit-inset;
         return clamp(value,limit);
       }
       const left=axis(x,maxX),top=axis(y,maxY);
@@ -468,23 +579,25 @@ export class MapCanvas {
   }
 
   setMiniPage(isMap){
+    if (!isMap) clearTimeout(this.blankClickTimer);
     this.mini.hidden=isMap;
     this.mini.title=isMap?(language()==="en"?"Close model map":"收起模型地图"):(language()==="en"?"Open model map":"展开模型地图");
     this.mini.setAttribute("aria-label",this.mini.title);
     this.mini.setAttribute("aria-expanded",String(isMap));
   }
 
-  paintMini(){
+  paintMini(related){
     if(!this.layout)return;
     const {width,height,nodes,nodeWidth,nodeHeight}=this.layout;
     this.miniView.setAttribute("viewBox","0 0 "+width+" "+height);
     this.miniView.replaceChildren();
-    for(const {path} of this.paths){
-      this.miniView.append(svg("path",{d:path.getAttribute("d"),fill:"none",stroke:"#96a5aa","stroke-width":5}));
+    for(const {edge,path} of this.paths){
+      const on = related.has(edge.from) && related.has(edge.to);
+      this.miniView.append(svg("path",{d:path.getAttribute("d"),fill:"none",stroke:on ? path.style.getPropertyValue("--accent") : "#d5d6d6","stroke-width":on ? 7 : 4,"stroke-dasharray":edge.kind==="finetune" ? "13 9" : "none"}));
     }
     for(const n of nodes){
       const active=n.id===this.selected;
-      this.miniView.append(svg("rect",{x:n.x,y:n.y,width:nodeWidth,height:nodeHeight,rx:8,fill:COLORS[n.accent]||"#9ba6aa",opacity:this.selected&&!active?0.63:1,stroke:active?"#3a555e":"none","stroke-width":10}));
+      this.miniView.append(svg("rect",{x:n.x,y:n.y,width:nodeWidth,height:nodeHeight,rx:8,fill:related.has(n.id) ? COLORS[n.accent]||"#9ba6aa" : "#dadbda",stroke:active?"#3a555e":"none","stroke-width":10}));
     }
     this.miniFrame=svg("rect",{class:"mini-frame"});
     this.miniView.append(this.miniFrame);
@@ -502,7 +615,7 @@ export class MapCanvas {
     node.y = y;
     const item = this.cards.get(node.id);
     item.card.style.top = y + "px";
-    item.sota.style.top=(y+6)+"px";
+    item.compare.style.top=(y+6)+"px";
     item.handle.style.top = y + this.layout.nodeHeight / 2 + "px";
     for (const { edge, path } of this.paths) {
       const d = wirePath(edge, this.layout, this.project.edges);
@@ -510,15 +623,24 @@ export class MapCanvas {
     }
   }
 
+  compareVersions() {
+    if (!this.selected) return [];
+    return this.prefs.comparisonsByVersion?.[this.selected]
+      ?? this.project.edges.filter(edge => edge.to === this.selected).map(edge => edge.from);
+  }
+
   highlight() {
-    this.paintMini();
     if (!this.project) return;
     const related = this.selected
       ? relatives(this.project.edges, this.selected)
       : new Set(this.project.nodes.map((n) => n.id));
+    const comparisons = new Set(this.compareVersions());
     let matches = 0;
     for (const node of this.project.nodes) {
-      const { card } = this.cards.get(node.id);
+      const { card, compare } = this.cards.get(node.id);
+      compare.hidden = node.id === this.selected;
+      compare.disabled = !this.selected || compare.hidden;
+      compare.setAttribute("aria-pressed", String(comparisons.has(node.id)));
       const match =
         !this.query ||
         [
@@ -549,6 +671,8 @@ export class MapCanvas {
       path.classList.toggle("is-related", on);
       path.classList.toggle("is-muted", !on);
     }
+    // Miniature sizing reads layout. Apply lineage styles before that first flush.
+    this.paintMini(related);
     document.querySelector("#map-message").textContent = this.query
       ? t("搜索匹配", { n: matches })
       : this.selected
@@ -572,7 +696,7 @@ export class MapCanvas {
     }
   }
   select(id) {
-    if(this.selected!==id)this.armed=null;
+
     this.selected = id;
     this.highlight();
   }

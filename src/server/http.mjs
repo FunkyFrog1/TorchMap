@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { api } from "./api.mjs";
 const webFiles = new Set([
   "app.js",
+  "vendor/markdown-it.min.js",
   "canvas.js",
   "editor.js",
   "i18n.js",

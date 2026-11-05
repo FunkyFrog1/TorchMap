@@ -78,7 +78,7 @@
     96px 96px,
     24px 24px,
     24px 24px;
-  cursor: grab;
+  cursor: default;
   touch-action: none;
 }
 .viewport,
@@ -86,7 +86,8 @@
   -webkit-user-select: none;
   user-select: none;
 }
-.viewport.is-panning {
+.viewport.is-panning,
+.viewport.is-panning * {
   cursor: grabbing;
 }
 .world {
@@ -225,8 +226,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   margin-top: 4px;
-  font-size: 16px;
-  line-height: 21px;
+  font-size: 14px;
+  line-height: 19px;
   font-weight: 500;
   color: color-mix(in srgb, var(--accent) 24%, var(--ink-strong));
 }
@@ -348,10 +349,11 @@
 }
 
 .experiment-node {
-  cursor: ns-resize;
+  cursor: default;
   touch-action: none;
 }
 .experiment-node.is-dragging {
+  cursor: grabbing;
   z-index: 5;
   opacity: 0.85;
   box-shadow: 0 8px 24px var(--shadow-deep);
@@ -378,7 +380,21 @@
 }
 
 .node-header {
-  padding: 15px 12px 12px;
+  height: 49px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4px 12px;
+}
+.node-creator {
+  align-self: flex-start;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 11px/15px system-ui, "Segoe UI Emoji", sans-serif;
+  color: var(--ink);
 }
 .node-title {
   margin-top: 0;

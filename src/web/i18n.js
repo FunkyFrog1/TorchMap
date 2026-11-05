@@ -119,6 +119,7 @@ const english = {
     "Select a version to trace upstream; click blank space to restore all colors.",
   "版本 ID 不能重复": "Version IDs must be unique",
   版本名称: "Model version title",
+  创建者: "Creator",
   "版本日期应为有效的 YYYY-MM-DD": "Use a valid date in YYYY-MM-DD format",
   版本详情: "Model version details",
   "版本说明 | https://example.com/report":

@@ -57,6 +57,7 @@ export class NodeEditor {
             ...(this.node || { row: this.draft.row }),
             id: this.node?.id || crypto.randomUUID(),
             title: text("title"),
+            creator: text("creator"),
             date: text("date"),
             status: text("status"),
             summary: text("summary"),
@@ -70,6 +71,7 @@ export class NodeEditor {
           },
           parents,
         );
+        if (!this.node) localStorage.setItem("tm-creator-name", text("creator"));
         this.dialog.close();
       } catch (error) {
         document.querySelector("#node-form-error").textContent = t(
@@ -89,6 +91,7 @@ export class NodeEditor {
       : t("新增版本");
     const defaults = {
       title: "",
+      creator: node ? "" : localStorage.getItem("tm-creator-name") || "",
       date: new Date().toLocaleDateString("sv-SE"),
       status: "recorded",
       summary: "",
@@ -100,6 +103,7 @@ export class NodeEditor {
     };
     for (const name of [
       "title",
+      "creator",
       "date",
       "status",
       "summary",
