@@ -1,10 +1,11 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="app-starting">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="color-scheme" content="light" />
-    <title>Experiment Map</title>
+    <style>html.app-starting{background:#f2f2f0}html.app-starting body{visibility:hidden}</style>
+    <title>TensorMap</title>
     <script>
       try {
         document.documentElement.dataset.theme =
@@ -15,20 +16,18 @@
     <link rel="stylesheet" href="/styles/base.css" />
     <link rel="stylesheet" href="/styles/map.css" />
     <link rel="stylesheet" href="/styles/controls.css" />
+    <link rel="stylesheet" href="/styles/monitor.css" />
   </head>
   <body>
-    <header class="app-header">
-      <div class="brand" aria-label="Experiment Map">
+    <aside class="project-sidebar" aria-label="Projects">
+      <div class="brand" aria-label="TensorMap">
         <span class="brand-mark" aria-hidden="true"
           ><svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 50 46"
             fill="currentColor"
           >
-            <path
-              d="M2124 1120Q2124 1053 2001 1053Q1904 1053 1540 1143Q1370 1046 1370 899Q1370 828 1419 801Q1490 807 1526 807Q1630 807 1630 782Q1630 766 1575 766Q1505 766 1423 786Q1312 770 1165 700Q791 521 791 236Q791 47 995 -4Q958 57 958 137Q958 334 1159.0 500.0Q1360 666 1599 666Q1709 666 1774.0 612.0Q1839 558 1839 467Q1839 272 1625.0 115.5Q1411 -41 1143 -41Q1089 -41 1042 -35Q1138 -164 1327 -164Q1444 -164 1518 -129L1530 -127Q1536 -129 1536 -135Q1536 -149 1462.0 -164.5Q1388 -180 1327 -180Q1118 -180 1008 -29Q855 5 768.5 86.5Q682 168 682 276Q682 421 802.0 547.5Q922 674 1122 739Q1243 779 1399 797Q1288 844 1288 946Q1288 1077 1450 1165Q1218 1221 1067 1221Q771 1221 562.5 1073.0Q354 925 354 715Q354 621 409.0 554.0Q464 487 541 487Q594 487 594 504Q594 513 575 510Q522 510 522 559Q522 587 545.5 607.0Q569 627 602 627Q666 627 666 565Q666 524 629.5 495.5Q593 467 541 467Q448 467 382.5 550.5Q317 634 317 752Q317 929 471 1077Q654 1253 985 1253Q1169 1253 1475 1178Q1613 1245 1796 1245Q1932 1245 2028.0 1208.5Q2124 1172 2124 1120ZM2103 1122Q2103 1161 2020.5 1191.0Q1938 1221 1831 1221Q1684 1221 1563 1157Q1828 1071 2009 1071Q2103 1071 2103 1122ZM1821 475Q1821 547 1764.0 594.0Q1707 641 1620 641Q1405 641 1200.0 462.5Q995 284 995 98Q995 44 1028 -12Q1086 -23 1135 -23Q1371 -23 1596.0 140.5Q1821 304 1821 475Z"
-              transform="matrix(0.022136 0 0 -0.022136 -5.01716 36.01550)"
-            />
+            <path d="M3 13 C6 4 15 3 23 5 C30 7 36 8 40 3 C38 11 31 12 22 9 C17 7 9 5 5 12 C3 16 7 16 10 13 C8 18 1 19 3 13 Z M23 8 C27 8 26 11 24 15 L16 32 C13 39 5 41 3 36 C2 33 5 31 8 32 C4 33 5 37 8 36 C11 35 13 29 15 25 L20 13 C21 10 21 9 23 8 Z" />
             <text
               x="24"
               y="40"
@@ -43,28 +42,15 @@
               m
             </text>
           </svg></span
-        ><span class="brand-name">Experiment Map</span>
+        ><span class="brand-name">TensorMap</span>
       </div>
       <span id="save-state" role="status"></span>
-      <div class="header-actions">
-        <button id="language" class="header-small" aria-label="Language">
-          中文
-        </button>
-        <button
-          id="theme"
-          class="header-small"
-          data-i18n-title="切换主题"
-          title="切换主题"
-        ></button>
-      </div>
       <input
         id="import-file"
         type="file"
         accept="application/json,.json"
         hidden
       />
-    </header>
-    <aside class="project-sidebar" aria-label="Projects">
       <label class="sidebar-label" for="project-picker" data-i18n="项目"
         >项目</label
       >
@@ -91,6 +77,7 @@
         aria-label="版本路线图"
       >
         <div class="map-toolbar">
+          <select id="board-order" aria-label="排列方式"><option value="date" data-i18n="按日期">按日期</option><option value="generation" data-i18n="按代数">按代数</option></select>
           <button id="add-node" class="primary" data-i18n="＋ 新增版本">
             ＋ 新增版本
           </button>

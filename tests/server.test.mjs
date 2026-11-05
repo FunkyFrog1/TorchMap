@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, writeFile, readFile, unlink, rmdir } from "node:fs/promises";
+import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,15 +29,7 @@ test("local save roundtrips to disk; invalid projects do not overwrite it", asyn
       child.kill();
       await exit;
     }
-    for (const name of [
-      "project.json",
-      "project.backup.json",
-      "project.json.tmp",
-    ])
-      await unlink(path.join(directory, name)).catch((error) => {
-        if (error.code !== "ENOENT") throw error;
-      });
-    await rmdir(directory);
+    await rm(directory, { recursive: true, force: true });
   });
   const url = await new Promise((resolve, reject) => {
     const timer = setTimeout(
@@ -58,9 +50,16 @@ test("local save roundtrips to disk; invalid projects do not overwrite it", asyn
   assert.equal(response.status, 200);
   assert.equal(
     (await (await fetch(url + "api/health")).json()).application,
-    "experiment-map",
+    "tensormap",
   );
-  assert.deepEqual(await response.json(), original);
+  assert.equal((await response.json()).title, original.title);
+  const migrated = path.join(
+    directory,
+    "tensormap",
+    "projects",
+    "default",
+    "map.json",
+  );
   assert.equal(response.headers.get("cache-control"), "no-store");
   const changed = {
     ...original,
@@ -73,10 +72,16 @@ test("local save roundtrips to disk; invalid projects do not overwrite it", asyn
     body: JSON.stringify(changed),
   });
   assert.equal(saved.status, 200);
-  assert.equal(JSON.parse(await readFile(file, "utf8")).title, "saved locally");
+  assert.equal(
+    JSON.parse(await readFile(migrated, "utf8")).title,
+    "saved locally",
+  );
   assert.equal(
     JSON.parse(
-      await readFile(path.join(directory, "project.backup.json"), "utf8"),
+      await readFile(
+        path.join(path.dirname(migrated), "map.backup.json"),
+        "utf8",
+      ),
     ).title,
     "original",
   );
@@ -85,7 +90,10 @@ test("local save roundtrips to disk; invalid projects do not overwrite it", asyn
     body: JSON.stringify({ ...changed, edges: [{ from: "a", to: "a" }] }),
   });
   assert.equal(invalid.status, 400);
-  assert.equal(JSON.parse(await readFile(file, "utf8")).title, "saved locally");
+  assert.equal(
+    JSON.parse(await readFile(migrated, "utf8")).title,
+    "saved locally",
+  );
   const foreign = await fetch(url + "api/project", {
     method: "PUT",
     headers: { Origin: "https://example.com" },

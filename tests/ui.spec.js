@@ -1171,3 +1171,148 @@ test("connector date follows zoom and pan; releasing outside the canvas creates 
   await expect(page.locator(".branch-preview,.branch-date")).toHaveCount(0);
   expect(await (await request.get(url + "api/project")).json()).toEqual(before);
 });
+
+test("branch inspector overlays parent curves and follows the exact evaluation checkpoint", async ({
+  page,
+  request,
+}) => {
+  const created = await request.post(url + "api/projects", {
+    data: {
+      schemaVersion: 1,
+      title: "Protocol UI",
+      nodes: ["origin", "branch"].map((id) => ({
+        id,
+        title: id,
+        date: "2026-01-01",
+      })),
+      edges: [{ from: "origin", to: "branch", kind: "branch" }],
+    },
+  });
+  const { id } = await created.json();
+  let seq = 0;
+  const emit = async (type, fields) =>
+    expect(
+      (
+        await request.post(url + "api/events?project=" + id, {
+          data: {
+            protocol: "tensormap/0.1",
+            id: "eid" + ++seq,
+            type,
+            ...fields,
+          },
+        })
+      ).ok(),
+    ).toBeTruthy();
+  for (const versionId of ["origin", "branch"]) {
+    const runId = "t-" + versionId,
+      a = { runId, attempt: 1 },
+      checkpointId = "ck-" + versionId;
+    await emit("run.created", { runId, versionId, kind: "train" });
+    await emit("attempt.started", a);
+    await emit("metric", { ...a, name: "loss", value: 0.3, step: 40 });
+    await emit("checkpoint.saved", {
+      ...a,
+      step: 40,
+      uri: "x.pt",
+      weights: "ema",
+      checkpointId,
+    });
+    const b = { runId: "eval-" + versionId, attempt: 1 };
+    await emit("run.created", {
+      runId: b.runId,
+      versionId,
+      kind: "eval",
+      checkpointId,
+      dataset: "holdout",
+      protocolId: "v1",
+    });
+    await emit("attempt.started", b);
+    await emit("metric", { ...b, name: "accuracy", step: 8, value: 0.89 });
+    await emit("attempt.ended", { ...b, status: "succeeded" });
+  }
+  await page.goto(url + "?project=" + id + "#branch");
+  await chooseLanguage(page, "en");
+  await page.locator('[data-view="validation"]').click();
+  await expect(page.locator(".metric-card h2")).toHaveText("accuracy");
+  await expect(page.locator(".metric-card polyline")).toHaveCount(2);
+  await expect(page.locator("#run-select")).toBeHidden();
+  await emit("run.created", {
+    runId: "second",
+    versionId: "branch",
+    kind: "train",
+  });
+  await emit("attempt.started", { runId: "second", attempt: 1 });
+  for (const name of ["new_score_x", "new_score_y"])
+    await emit("metric", {
+      runId: "second",
+      attempt: 1,
+      step: 2,
+      name,
+      value: 0.72,
+    });
+  await page.reload();
+  await page.locator('[data-view="roadmap"]').click();
+  await page.locator("#run-select").selectOption("second");
+  await page.locator(".map-compare summary").click();
+  await page.locator('.map-compare input[value="t-branch"]').check();
+  await page.locator('[data-view="training"]').click();
+  await expect(page.locator(".metric-card h2")).toHaveText([
+    "new_score_x",
+    "new_score_y",
+    "loss",
+  ]);
+  await expect(
+    page
+      .locator(".metric-card")
+      .filter({ has: page.getByRole("heading", { name: "loss", exact: true }) })
+      .locator("polyline"),
+  ).toHaveCount(2);
+  await page.locator('[data-view="roadmap"]').click();
+  await page.locator('.experiment-node[data-id="origin"]').click();
+  await expect(page.locator("#run-select")).toHaveValue("t-origin");
+  await expect(page.locator('#run-select option[value="second"]')).toHaveCount(
+    0,
+  );
+});
+
+test("an offline draft cannot overwrite a new CLI version on reload", async ({
+  page,
+  request,
+}) => {
+  const before = await (await request.get(url + "api/project")).json();
+  const conflict = {
+    ...before,
+    title: "outdated draft",
+    updatedAt: "2099-01-01T00:00:00.000Z",
+    baseRevision: before.updatedAt,
+  };
+  await page.evaluate(
+    (d) =>
+      localStorage.setItem(
+        "experiment-map:v1:draft:" + location.host,
+        JSON.stringify(d),
+      ),
+    conflict,
+  );
+  expect(
+    (
+      await request.post(url + "api/versions", {
+        data: {
+          node: { id: "cli-branch", title: "CLI branch", date: "2026-01-09" },
+        },
+      })
+    ).ok(),
+  ).toBeTruthy();
+  await page.reload();
+  await expect(page.locator(".experiment-node")).toHaveCount(9);
+  expect((await (await request.get(url + "api/project")).json()).title).toBe(
+    before.title,
+  );
+  expect(
+    await page.evaluate(() =>
+      localStorage.getItem(
+        "experiment-map:v1:draft:" + location.host + ":conflict",
+      ),
+    ),
+  ).toContain("outdated draft");
+});

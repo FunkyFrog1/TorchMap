@@ -76,7 +76,7 @@ export function normalizeProject(raw) {
     )
       throw new Error("版本日期应为有效的 YYYY-MM-DD");
     return {
-      row: Number.isInteger(node.row) && node.row >= 0 ? node.row : undefined,
+      row: Number.isInteger(node.row) ? node.row : undefined,
       id: String(node.id),
       title: String(node.title).trim(),
       date,
@@ -146,18 +146,28 @@ export function normalizeProject(raw) {
   };
 }
 
-export function layoutProject(project) {
-  const nodeWidth = 250,
-    nodeHeight = 132,
-    dates = [...new Set(project.nodes.map((n) => n.date))].sort();
-  const columns = dates.map((date, i) => ({
-    date,
-    x: 40 + i * 340,
-    count: project.nodes.filter((n) => n.date === date).length,
-  }));
+export function layoutProject(project,mode="date",savedRows={}) {
+  const nodeWidth=250,nodeHeight=132;
+  const ancestors=new Map(project.nodes.map(n=>[n.id,[]])),depth=new Map();
+  for(const edge of project.edges)ancestors.get(edge.to).push(edge.from);
+  function generation(id){
+    if(!depth.has(id))depth.set(id,1+Math.max(0,...ancestors.get(id).map(generation)));
+    return depth.get(id);
+  }
+  const group=n=>mode==="generation"?generation(n.id):n.date;
+  const dates=[...new Set(project.nodes.map(group))].sort(mode==="generation"?(a,b)=>a-b:undefined);
+  const columns=dates.map((key,i)=>{const members=project.nodes.filter(n=>group(n)===key);
+    return {key,date:members.map(n=>n.date).sort().at(-1),x:40+i*340,count:members.length};});
+  const tallest=Math.max(1,...columns.map(c=>c.count));
+  const rowPitch = mode === "generation" ? nodeHeight + 20 : 204;
+  for (const c of columns) {
+    c.rowTop = 146 + (tallest - c.count) * rowPitch / 2;
+    // Row zero is the centered starting lane. The column heading is the actual upper boundary.
+    c.minRow = Math.ceil((70 - c.rowTop) / rowPitch);
+  }
   const positions = new Map();
   const occupied = new Map(dates.map((date) => [date, new Set()]));
-  const columnByDate = new Map(columns.map((column) => [column.date, column]));
+  const columnByDate = new Map(columns.map((column) => [column.key, column]));
   const nodes = new Map(project.nodes.map((node) => [node.id, node]));
   const parents = new Map(project.nodes.map((node) => [node.id, []]));
   const children = new Map(project.nodes.map((node) => [node.id, []]));
@@ -168,7 +178,7 @@ export function layoutProject(project) {
   let maximumRow = 0;
 
   function place(node, preferred, minimum = 0) {
-    const used = occupied.get(node.date);
+    const used = occupied.get(group(node));
     preferred = Math.max(preferred, minimum);
     let row = preferred;
     // Keep continuations near their upstream lane, using the next lower lane
@@ -187,23 +197,23 @@ export function layoutProject(project) {
     positions.set(node.id, {
       ...node,
       row,
-      x: columnByDate.get(node.date).x,
-      y: 96 + row * 204,
+      x: columnByDate.get(group(node)).x,
+      minRow:columnByDate.get(group(node)).minRow, group:group(node), rowTop:columnByDate.get(group(node)).rowTop, y: columnByDate.get(group(node)).rowTop + row * rowPitch,
     });
   }
 
   // Saved lanes are the source of truth, as in the original date-column map.
   // Reserve them before placing new cards so adding a branch cannot push them.
   for (const column of columns) {
-    for (const node of project.nodes
+    for (const node of project.nodes.map(n=>mode==="generation"?{...n,row:savedRows[n.id]}:n)
       .filter(
-        (n) => n.date === column.date && Number.isInteger(n.row) && n.row >= 0,
+        (n) => group(n) === column.key && Number.isInteger(n.row),
       )
       .sort((a, b) => a.row - b.row)) {
-      const used = occupied.get(node.date);
-      let row = node.row;
+      const used = occupied.get(group(node));
+      let row = Math.max(column.minRow, node.row);
       while (used.has(row)) row++;
-      place(node, row);
+      place(node, row, column.minRow);
     }
   }
 
@@ -225,11 +235,11 @@ export function layoutProject(project) {
       const upstream = (lineage.length ? lineage : incoming).map((edge) =>
         positions.get(edge.from),
       );
-      const sameDay = upstream.filter((parent) => parent.date === node.date);
+      const sameDay = upstream.filter((parent) => group(parent) === group(node));
       const minimum = sameDay.length
         ? Math.max(...sameDay.map((parent) => parent.row)) + 1
         : 0;
-      place(node, upstream[0]?.row ?? 0, minimum);
+      place(node, mode === "generation" ? 0 : upstream[0]?.row ?? 0, minimum);
     }
     for (const child of children.get(id)) {
       remaining.set(child, remaining.get(child) - 1);
@@ -239,10 +249,11 @@ export function layoutProject(project) {
   return {
     nodes: project.nodes.map((n) => positions.get(n.id)),
     columns,
+    rowPitch,
     nodeWidth,
     nodeHeight,
     width: Math.max(600, columns.length * 340 - 10 + 80),
-    height: Math.max(420, maximumRow * 204 + nodeHeight + 152),
+    height: Math.max(480,...[...positions.values()].map(n=>n.y+nodeHeight+90)),
   };
 }
 

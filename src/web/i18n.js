@@ -1,4 +1,5 @@
 const english = {
+  "按日期":"By date", "按代数":"By generation",
   拖出新版本: "Drag to create a linked model version",
   切换主题: "Next color theme",
   项目: "Project",
@@ -14,7 +15,7 @@ const english = {
   "版本迭代 / 合并": "Iteration / merge",
   归档项目: "Archive project",
   归档说明:
-    "Archive this project? Its file stays in data/projects/archive and can be restored manually.",
+    "Archive this project? Its file stays in data/tensormap/archive and can be restored manually.",
   "上游关系形成了循环，请检查连线":
     "The upstream links form a cycle. Check the connections.",
   上游版本: "Upstream versions",
@@ -158,7 +159,7 @@ const english = {
   雾蓝: "Slate blue",
   青灰: "Muted teal",
   页面不存在: "Page not found",
-  "项目保存在本机 data/project.json。示例均为虚构，可自由编辑或新建项目。":
+  "项目保存在本机 data/tensormap/。示例均为虚构，可自由编辑或新建项目。":
     "Each project is saved separately in the local data directory. Examples are fictional; edit them or start a new project.",
   项目名称: "Model project title",
   项目操作: "Project actions",
@@ -182,9 +183,9 @@ const english = {
 const chinese = {
   画布操作提示:
     "点击卡片追溯上游，点击空白恢复颜色；拖动空白平移，滚轮缩放，双击卡片定位。",
-  "项目保存在本机 data/project.json。示例均为虚构，可自由编辑或新建项目。":
+  "项目保存在本机 data/tensormap/。示例均为虚构，可自由编辑或新建项目。":
     "各项目分别保存在本机 data 目录。示例均为虚构，可自由编辑或新建项目。",
-  归档说明: "归档当前项目？文件会保留在 data/projects/archive，可手动恢复。",
+  归档说明: "归档当前项目？文件会保留在 data/tensormap/archive，可手动恢复。",
   数量版本: "{n} 个版本",
   数量上游: "{n} 个上游",
   搜索匹配: "找到 {n} 个匹配版本",

@@ -9,19 +9,30 @@ const DRAFT_KEY =
   "experiment-map:v1:draft:" +
   location.host +
   (projectId === "default" ? "" : ":" + projectId);
+let mapRevision;
 let queue = Promise.resolve(),
   revision = 0;
 
 export async function loadProject() {
   const response = await fetch(endpoint, { cache: "no-store" });
   if (!response.ok) throw new Error("无法读取本地项目，请确认启动服务正常");
-  const project = normalizeProject(await response.json());
+  const rawProject = await response.json();
+  const project = normalizeProject(rawProject);
+  if (rawProject.directoryMode) return { project, directoryMode: true };
+  mapRevision = project.updatedAt;
   try {
     // Discard prototype drafts; they belong to the pre-release data format.
     localStorage.removeItem("experiment-map:draft:" + location.host);
     const savedDraft = localStorage.getItem(DRAFT_KEY);
     if (savedDraft) {
-      const draft = normalizeProject(JSON.parse(savedDraft));
+      const raw = JSON.parse(savedDraft);
+      const draft = normalizeProject(raw);
+      if (raw.baseRevision != null && raw.baseRevision !== mapRevision) {
+        // Keep the rejected local edit for recovery; never overwrite a newer server map on reload.
+        localStorage.setItem(DRAFT_KEY + ":conflict", savedDraft);
+        localStorage.removeItem(DRAFT_KEY);
+        return { project, recovered: false, conflict: true };
+      }
       if (Date.parse(draft.updatedAt) > Date.parse(project.updatedAt || 0))
         return { project: draft, recovered: true };
       localStorage.removeItem(DRAFT_KEY);
@@ -39,18 +50,33 @@ export function saveProject(project, onState) {
   const snapshot = structuredClone(project);
   snapshot.updatedAt = new Date().toISOString();
   try {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(snapshot));
+    localStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({ ...snapshot, baseRevision: mapRevision }),
+    );
   } catch {}
   onState("saving");
   const save = async () => {
     try {
+      if (current === revision) {
+        try {
+          localStorage.setItem(
+            DRAFT_KEY,
+            JSON.stringify({ ...snapshot, baseRevision: mapRevision }),
+          );
+        } catch {}
+      }
       const response = await fetch(endpoint, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Map-Revision": mapRevision ?? "",
+        },
         body: JSON.stringify(snapshot),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "保存失败");
+      mapRevision = result.savedAt;
       if (current === revision) {
         try {
           localStorage.removeItem(DRAFT_KEY);

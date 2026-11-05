@@ -26,11 +26,22 @@ export class MapCanvas {
   constructor(onSelect, onMove) {
     this.onSelect = onSelect;
     this.onMove = onMove;
+    this.prefKey="tm-board:"+location.host+":"+(new URLSearchParams(location.search).get("project")||"default");
+    try {this.prefs=JSON.parse(localStorage.getItem(this.prefKey))||{};} catch {this.prefs={};}
+    for(const [id,factor] of [["zoom-in",1.2],["zoom-out",1/1.2]])document.getElementById(id).onclick=()=>this.zoom(this.scale*factor);
     this.cards = new Map();
     this.paths = [];
     this.viewport = document.querySelector("#viewport");
     this.world = document.querySelector("#world");
     this.wires = document.querySelector("#wires");
+    this.mini = element("button","route-minimap");
+    this.mini.type="button";
+    this.miniView=svg("svg",{preserveAspectRatio:"xMidYMid meet","aria-hidden":"true"});
+    this.mini.append(this.miniView);
+    document.body.append(this.mini);
+    this.mini.classList.add("floating");
+    this.enableMiniDrag();
+
     this.scale = 1;
     this.panX = 0;
     this.panY = 0;
@@ -96,12 +107,16 @@ export class MapCanvas {
     this.cancelBranchDrag?.();
     this.project = project;
     this.selected = selected;
-    this.layout = layoutProject(project);
+    const byGeneration=this.prefs.mode==="generation";
+    const picker=document.getElementById("board-order");
+    picker.value=byGeneration?"generation":"date";
+    picker.onchange=()=>{this.prefs.mode=picker.value;localStorage.setItem(this.prefKey,JSON.stringify(this.prefs));this.onLayoutChange();};
+    this.layout = layoutProject(project,this.prefs.mode,this.prefs.generationRows);
     const layout = this.layout;
     this.cards.clear();
     this.paths = [];
     this.world
-      .querySelectorAll(".experiment-node,.date-column,.branch-handle")
+      .querySelectorAll(".experiment-node,.date-column,.branch-handle,.sota-toggle")
       .forEach((n) => n.remove());
     this.wires.replaceChildren();
     Object.assign(this.world.style, {
@@ -121,7 +136,7 @@ export class MapCanvas {
         element(
           "strong",
           "",
-          new Intl.DateTimeFormat(language(), {
+          byGeneration?(language()==="en"?"Generation "+column.key:"第 "+column.key+" 代"):new Intl.DateTimeFormat(language(), {
             month: "short",
             day: "numeric",
             timeZone: "UTC",
@@ -130,7 +145,7 @@ export class MapCanvas {
         element(
           "span",
           "",
-          column.date.slice(0, 4) + " · " + t("数量版本", { n: column.count }),
+          (byGeneration?"":column.date.slice(0, 4) + " · ") + t("数量版本", { n: column.count }),
         ),
       );
       band.append(heading);
@@ -170,10 +185,11 @@ export class MapCanvas {
           node.changes[0] || node.configuration || t("点击填写版本改动"),
         ),
       );
-      const footer = element("span", "node-footer"),
-        status = element("span", "node-status", t(STATUS[node.status]));
-      status.dataset.status = node.status;
-      footer.append(status);
+      const footer=element("span","node-footer card-progress");
+      for(const name of ["Epoch","Step"]){
+        const line=element("span","progress-line"),track=element("span","progress-track");
+        track.append(element("i"));line.append(element("span","",name),track,element("span","progress-value","—"));footer.append(line);
+      }
       body.append(footer);
       card.append(header, body);
       let drag = null,
@@ -181,6 +197,7 @@ export class MapCanvas {
       card.addEventListener("pointerdown", (event) => {
         if (event.button !== 0) return;
         event.stopPropagation();
+
         drag = { start: event.clientY, row: node.row, y: node.y, moved: false };
         card.setPointerCapture(event.pointerId);
       });
@@ -189,10 +206,10 @@ export class MapCanvas {
         const delta = (event.clientY - drag.start) / this.scale;
         if (Math.abs(delta) > 5) drag.moved = true;
         if (drag.moved) {
-          const row = Math.max(0, node.row + Math.round(delta / 204));
+          const row = Math.max(node.minRow, node.row + Math.round(delta / this.layout.rowPitch));
           if (row !== drag.row) {
             drag.row = row;
-            this.previewPosition(node, 96 + row * 204);
+            this.previewPosition(node, node.rowTop + row * this.layout.rowPitch);
           }
           card.classList.add("is-dragging");
         }
@@ -220,11 +237,28 @@ export class MapCanvas {
         }
         this.onSelect(node.id);
       });
-      card.addEventListener("dblclick", () => this.focus(node.id));
+      card.addEventListener("dblclick", () => {
+        const dx=this.panX+(node.x+this.layout.nodeWidth/2)*this.scale-this.viewport.clientWidth/2;
+        const dy=this.panY+(node.y+this.layout.nodeHeight/2)*this.scale-this.viewport.clientHeight/2;
+        if(this.armed===node.id && Math.abs(dx)<2 && Math.abs(dy)<2){
+          this.keepMini=true;
+          this.onTraining?.();
+        }else{
+          this.focus(node.id);
+          this.armed=node.id;
+        }
+      });
       this.world.append(card);
       const handle = this.branchHandle(node);
       this.world.append(handle);
-      this.cards.set(node.id, { card, handle });
+      const sota=element("button","sota-toggle");
+      const star=svg("svg",{viewBox:"0 0 24 24","aria-hidden":"true"});star.append(svg("path",{d:"m12 3 2.8 5.8 6.4.9-4.6 4.5 1.1 6.4-5.7-3-5.7 3 1.1-6.4-4.6-4.5 6.4-.9z"}));sota.append(star);
+      sota.type="button";sota.title=(language()==="en"?"Star · ":"星标 · ")+node.title;sota.setAttribute("aria-label",sota.title);
+      const marked=()=>this.prefs.sota?.includes(node.id)??false;
+      sota.setAttribute("aria-pressed",String(marked()));sota.style.left=(node.x+220)+"px";sota.style.top=(node.y+6)+"px";
+      sota.onclick=()=>{const marks=new Set(this.prefs.sota||[]);if(marked())marks.delete(node.id);else marks.add(node.id);
+        this.prefs.sota=[...marks];localStorage.setItem(this.prefKey,JSON.stringify(this.prefs));sota.setAttribute("aria-pressed",String(marked()));};
+      this.world.append(sota);this.cards.set(node.id,{card,handle,sota});
     }
     document.querySelector("#empty-map").hidden = project.nodes.length > 0;
     this.highlight();
@@ -253,7 +287,7 @@ export class MapCanvas {
       date.setUTCDate(date.getUTCDate() + index - nearest);
       return {
         date: date.toISOString().slice(0, 10),
-        row: Math.max(0, Math.round((y - 96) / 204)),
+        row: Math.max(columns[index]?.minRow??0, Math.round((y - (columns[index]?.rowTop??146)) / this.layout.rowPitch)),
         x,
         y,
         inside:
@@ -381,10 +415,94 @@ export class MapCanvas {
     return handle;
   }
 
+  enableMiniDrag() {
+    const button=this.mini;
+    const key="tensormap:minimap-position";
+    let position, gesture, skipClick=false;
+    try{position=JSON.parse(localStorage.getItem(key));}catch{}
+    const clamp=(v,limit)=>Math.max(0,Math.min(v,limit));
+    function move(x,y,settle=false){
+      const maxX=Math.max(0,document.documentElement.clientWidth-button.offsetWidth);
+      const maxY=Math.max(0,window.innerHeight-button.offsetHeight);
+      function axis(value,limit){
+        const inset=Math.min(12,limit/2);
+        if(settle && value<=36)return inset;
+        if(settle && limit-value<=36)return limit-inset;
+        return clamp(value,limit);
+      }
+      const left=axis(x,maxX),top=axis(y,maxY);
+      Object.assign(button.style,{left:left+"px",top:top+"px",bottom:"auto",right:"auto"});
+      return {x:left/(maxX||1),y:top/(maxY||1)};
+    }
+    function restore(){
+      if(position && Number.isFinite(position.x) && Number.isFinite(position.y)){
+        move(position.x*(document.documentElement.clientWidth-button.offsetWidth),position.y*(innerHeight-button.offsetHeight),true);
+      }
+    }
+    restore();window.addEventListener("resize",restore);
+    button.onpointerdown=e=>{
+      if(!e.isPrimary || e.button!==0)return;
+      skipClick=false;const r=button.getBoundingClientRect();
+      gesture={id:e.pointerId,x:e.clientX,y:e.clientY,left:r.left,top:r.top,moved:false};
+      button.setPointerCapture(e.pointerId);
+    };
+    button.onpointermove=e=>{
+      if(gesture?.id!==e.pointerId)return;
+      const dx=e.clientX-gesture.x,dy=e.clientY-gesture.y;
+      if(!gesture.moved && Math.hypot(dx,dy)<5)return;
+      gesture.moved=true;button.classList.add("dragging");move(gesture.left+dx,gesture.top+dy);
+    };
+    button.onpointerup=e=>{
+      if(gesture?.id!==e.pointerId)return;
+      if(gesture.moved){
+        skipClick=true;position=move(gesture.left+e.clientX-gesture.x,gesture.top+e.clientY-gesture.y,true);
+        try{localStorage.setItem(key,JSON.stringify(position));}catch{}
+      }
+      gesture=null;button.classList.remove("dragging");
+    };
+    button.onlostpointercapture=button.onpointercancel=()=>{
+      if(gesture){skipClick=gesture.moved;move(gesture.left,gesture.top);gesture=null;}
+      button.classList.remove("dragging");
+    };
+    button.onclick=e=>{if(!skipClick || e.detail===0)this.onReturn?.();skipClick=false;};
+  }
+
+  setMiniPage(isMap){
+    this.mini.hidden=isMap;
+    this.mini.title=isMap?(language()==="en"?"Close model map":"收起模型地图"):(language()==="en"?"Open model map":"展开模型地图");
+    this.mini.setAttribute("aria-label",this.mini.title);
+    this.mini.setAttribute("aria-expanded",String(isMap));
+  }
+
+  paintMini(){
+    if(!this.layout)return;
+    const {width,height,nodes,nodeWidth,nodeHeight}=this.layout;
+    this.miniView.setAttribute("viewBox","0 0 "+width+" "+height);
+    this.miniView.replaceChildren();
+    for(const {path} of this.paths){
+      this.miniView.append(svg("path",{d:path.getAttribute("d"),fill:"none",stroke:"#96a5aa","stroke-width":5}));
+    }
+    for(const n of nodes){
+      const active=n.id===this.selected;
+      this.miniView.append(svg("rect",{x:n.x,y:n.y,width:nodeWidth,height:nodeHeight,rx:8,fill:COLORS[n.accent]||"#9ba6aa",opacity:this.selected&&!active?0.63:1,stroke:active?"#3a555e":"none","stroke-width":10}));
+    }
+    this.miniFrame=svg("rect",{class:"mini-frame"});
+    this.miniView.append(this.miniFrame);
+    this.updateMiniFrame();
+  }
+  updateMiniFrame(){
+    const w=this.viewport.clientWidth,h=this.viewport.clientHeight;
+    if(!this.miniFrame||!w||!h||!(this.scale>0))return;
+    const x=Math.max(0,-this.panX/this.scale),y=Math.max(0,-this.panY/this.scale);
+    const right=Math.min(this.layout.width,(w-this.panX)/this.scale),bottom=Math.min(this.layout.height,(h-this.panY)/this.scale);
+    for(const [attr,value] of Object.entries({x,y,width:Math.max(0,right-x),height:Math.max(0,bottom-y)}))this.miniFrame.setAttribute(attr,value);
+  }
+
   previewPosition(node, y) {
     node.y = y;
     const item = this.cards.get(node.id);
     item.card.style.top = y + "px";
+    item.sota.style.top=(y+6)+"px";
     item.handle.style.top = y + this.layout.nodeHeight / 2 + "px";
     for (const { edge, path } of this.paths) {
       const d = wirePath(edge, this.layout, this.project.edges);
@@ -393,6 +511,7 @@ export class MapCanvas {
   }
 
   highlight() {
+    this.paintMini();
     if (!this.project) return;
     const related = this.selected
       ? relatives(this.project.edges, this.selected)
@@ -437,7 +556,23 @@ export class MapCanvas {
         : t("点击卡片追溯上游，点击空白恢复全图");
     document.querySelector("#focus").disabled = !this.selected;
   }
+  progress(runs,selectedRun) {
+    for(const [id,{card}] of this.cards){
+      const own=runs.filter(r=>r.kind==="train"&&r.versionId===id);
+      const r=own.find(r=>r.id===selectedRun)||own.find(r=>r.status==="running")||own.at(-1);
+      const pairs=[[r?.epoch,r?.totalEpochs],[r?.step,r?.total]];
+      card.classList.toggle("is-training",r?.status==="running"&&!r.stale);
+      card.querySelectorAll(".progress-line").forEach((line,i)=>{
+        const [v,t]=pairs[i],known=Number.isFinite(v)&&Number.isFinite(t)&&t>0;
+        const pct=known?Math.max(0,Math.min(100,100*v/t)):0;
+        line.lastChild.textContent=known?Number(pct.toFixed(1))+"%":"—";
+        line.title=known?v+" / "+t:language()==="en"?"Progress unavailable":"未上报完整进度";
+        line.querySelector("i").style.width=pct+"%";
+      });
+    }
+  }
   select(id) {
+    if(this.selected!==id)this.armed=null;
     this.selected = id;
     this.highlight();
   }
@@ -482,8 +617,12 @@ export class MapCanvas {
     this.applyCamera();
   }
   applyCamera() {
+    this.updateMiniFrame();
     this.world.style.setProperty("--map-scale", this.scale);
-    this.world.style.transform = `translate(${this.panX}px,${this.panY}px) scale(${this.scale})`;
+    // Layout zoom repaints glyphs at the displayed size instead of stretching a composited layer.
+    this.world.style.zoom = String(this.scale);
+    this.world.style.left = this.panX / this.scale + "px";
+    this.world.style.top = this.panY / this.scale + "px";
     this.viewport.style.backgroundPosition = `${this.panX}px ${this.panY}px`;
     document.querySelector("#zoom-level").value =
       Math.round(this.scale * 100) + "%";

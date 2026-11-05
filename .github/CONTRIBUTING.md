@@ -1,8 +1,8 @@
 # Contributing / 参与贡献
 
-Issues and pull requests in English or Chinese are welcome. Keep the tool focused on recording model-version lineage. Prefer simple, readable modules and native browser APIs; avoid adding a framework for a small feature.
+Issues and pull requests in English or Chinese are welcome. Keep experiments tied to model versions and checkpoint-specific evaluations. Prefer simple, readable modules and native browser APIs; avoid adding a framework for a small feature.
 
-欢迎使用中文或英文提交问题和 PR。项目专注于模型版本迭代记录，代码保持简单、可读，优先使用原生浏览器能力。
+欢迎使用中文或英文提交问题和 PR。项目围绕模型版本、独立运行与可追溯的评测，代码保持简单、可读，优先使用原生浏览器能力。
 
 1. Fork the repository and create a branch for one focused change.
 2. Run `npm ci`, `npm test` and `npm run test:ui` (install Chromium with `npx playwright install chromium`).

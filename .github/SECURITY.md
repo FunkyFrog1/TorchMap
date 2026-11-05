@@ -1,6 +1,6 @@
 # Security / 安全说明
 
-Experiment Map is designed for one user on a trusted local computer. It listens on `127.0.0.1`, accepts browser saves only from the same origin, and serves an explicit asset list. Do not expose its port to the public internet; it has no authentication or multi-user access control.
+TensorMap is designed for one user on a trusted local computer. It listens on `127.0.0.1`, accepts browser saves only from the same origin, and serves an explicit asset list. Do not expose its port to the public internet; it has no authentication or multi-user access control.
 
 本工具只用于可信本机的单人使用，不提供登录和多用户权限控制。请勿将端口直接暴露到公网。导入文件和导出内容均应由使用者核查。
 

@@ -1,6 +1,5 @@
 import "./interface.js";
-import "./themes.js";
-import { t, language, setLanguage } from "./i18n.js";
+import { t, language } from "./i18n.js";
 import { MapCanvas } from "./canvas.js";
 import { NodeEditor } from "./editor.js";
 import {
@@ -31,6 +30,7 @@ const button = (text, action, className = "") => {
   return node;
 };
 let leavingProject = false;
+let monitor;
 let project,
   selected = null,
   toastTimer,
@@ -39,6 +39,21 @@ let project,
 const undoStack = [],
   redoStack = [];
 const canvas = new MapCanvas(select, (id, row) => {
+  if(canvas.prefs.mode==="generation"){
+    const nodes=canvas.layout.nodes,moved=nodes.find(n=>n.id===id);
+    const rows=Object.fromEntries(nodes.map(n=>[n.id,n.row]));
+    const siblings=nodes.filter(n=>n.group===moved.group);
+    if(siblings.some(n=>n.id!==id && n.row===row)){
+      const direction=Math.sign(row-moved.row);
+      for(const sibling of siblings){
+        const distance=(sibling.row-moved.row)*direction;
+        if(distance>0 && distance<=Math.abs(row-moved.row)) rows[sibling.id]-=direction;
+      }
+    }
+    rows[id]=row;
+    canvas.prefs.generationRows=rows;localStorage.setItem(canvas.prefKey,JSON.stringify(canvas.prefs));
+    selected=id;render();return;
+  }
   const next = structuredClone(project);
   const positions = new Map(
     canvas.layout.nodes.map((node) => [node.id, node.row]),
@@ -51,8 +66,15 @@ const canvas = new MapCanvas(select, (id, row) => {
       node.row = previous;
   }
   moving.row = row;
+  if(document.body.classList.contains("directory-mode")){
+    canvas.prefs.rows=Object.fromEntries(next.nodes.map(n=>[n.id,n.row]));localStorage.setItem(canvas.prefKey,JSON.stringify(canvas.prefs));
+    project=next;selected=id;render();return;
+  }
   commit(next, id);
 });
+canvas.onTraining=()=>monitor?.changePage("training");
+canvas.onReturn=()=>monitor?.toggleMap();
+canvas.onLayoutChange=()=>render({fit:true});
 canvas.onCreate = (source, draft) => {
   if (leavingProject) return;
   editor.open(project, null, {
@@ -116,11 +138,13 @@ function saveState(state, detail) {
   if (state === "error") toast(t("保存暂未完成，请用 Ctrl+S 重试：") + detail);
 }
 async function persist() {
+  if (document.body.classList.contains("directory-mode")) return true;
   const saved = await saveProject(project, saveState);
   if (saved) void refreshProjects().catch(() => {});
   return saved;
 }
 function commit(next, nextSelected = selected) {
+  if (document.body.classList.contains("directory-mode")) return;
   if (leavingProject) return;
   const clean = normalizeProject(next);
   undoStack.push({ project: structuredClone(project), selected });
@@ -157,7 +181,7 @@ function render(options = {}) {
     (option) => option.value === projectId,
   );
   if (current) current.textContent = project.title;
-  document.title = project.title + " · Experiment Map";
+  document.title = project.title + " · TensorMap";
   $("project-counts").textContent = t("项目计数", {
     nodes: project.nodes.length,
     edges: project.edges.length,
@@ -185,39 +209,16 @@ function section(title, collapsed = false) {
   return block;
 }
 function details() {
+  monitor?.draw();
   const target = $("inspector");
   target.replaceChildren();
   const node = project.nodes.find((n) => n.id === selected);
-  if (!node) {
-    target.append(
-      element("p", "EXPERIMENT MAP", "eyebrow"),
-
-      element(
-        "p",
-        project.description || t("在同一张图中记录版本关系、改动与结论。"),
-        "project-description",
-      ),
-    );
-    target.append(
-      button(t("＋ 新增版本"), () => editor.open(project), "primary wide"),
-    );
-    const local = section(t("本地项目"));
-    local.append(
-      element(
-        "p",
-        t(
-          "项目保存在本机 data/project.json。示例均为虚构，可自由编辑或新建项目。",
-        ),
-        "subtle",
-      ),
-    );
-    target.append(local);
-    return;
-  }
+  target.hidden=!node;
+  if (!node) return;
   const top = element("div", undefined, "inspector-top");
   top.append(
     element("span", node.date, "eyebrow"),
-    button(t("全部路线"), () => select(null), "text-button"),
+    button(t("全部路线"), () => monitor?.changePage("roadmap"), "text-button"),
   );
   target.append(top, element("h1", node.title));
   const badge = element("span", t(STATUS[node.status]), "status-badge");
@@ -307,7 +308,9 @@ function details() {
     block.append(element("p", node.notes, "preserve-lines"));
     target.append(block);
   }
-  const blocks = [...target.querySelectorAll(":scope > .detail-section")];
+  const blocks = [
+    ...target.querySelectorAll(":scope > .detail-section:not(.tm-runs)"),
+  ];
   const priority = [t("主要改动"), t("记录指标"), t("备注")];
   for (const title of priority) {
     const block = blocks.find(
@@ -450,7 +453,6 @@ async function refreshProjects() {
 function projectBusy(busy) {
   if (busy) canvas.cancelBranchDrag?.();
   leavingProject = busy;
-  document.querySelector(".app-header").inert = busy;
   document.querySelector(".workspace").inert = busy;
   document.querySelector(".project-sidebar").inert = busy;
   $("project-form").inert = busy;
@@ -494,11 +496,40 @@ $("archive-project").addEventListener("click", () =>
 try {
   void refreshProjects().catch(() => {});
   const result = await loadProject();
+  document.body.classList.toggle(
+    "directory-mode",
+    Boolean(result.directoryMode),
+  );
   project = result.project;
+  if(result.directoryMode)for(const n of project.nodes){const row=canvas.prefs.rows?.[n.id];if(Number.isInteger(row))n.row=row;}
   const hash = decodeURIComponent(location.hash.slice(1));
   selected = project.nodes.some((n) => n.id === hash) ? hash : null;
   render({ fit: true });
   saveState("saved");
+  // Legacy map-only servers share the frontend checkout but serve an older asset list.
+  const monitorModule = await import("./project-monitor.js").catch(
+    async (error) => {
+      const health = await (await fetch("/api/health")).json();
+      if (health.application !== "experiment-map") throw error;
+      return null;
+    },
+  );
+  monitor = monitorModule?.mountMonitor({
+    projectId,
+    getMap: () => project,
+    getSelected: () => selected,
+    selectModel: select,
+    readOnly: result.directoryMode,
+    updateProgress:(runs,run)=>canvas.progress(runs,run),
+    onMapShown: () => canvas.keepMini ? canvas.applyCamera() : canvas.fit(),
+    setMiniPage:isMap=>canvas.setMiniPage(isMap),
+  });
+  if (result.conflict)
+    toast(
+      language() === "en"
+        ? "A newer map was loaded. Your older draft was kept in browser storage."
+        : "已打开较新的地图；有冲突的旧草稿保留在浏览器本地。",
+    );
   if (result.recovered) {
     toast(t("已恢复尚未写入文件的本机草稿"));
     persist();
@@ -510,18 +541,6 @@ try {
     element("p", t(error.message)),
   );
   toast(t(error.message));
+} finally {
+  document.documentElement.classList.remove("app-starting");
 }
-
-function languageButton() {
-  $("language").textContent = language() === "en" ? "EN" : "中文";
-  $("language").title =
-    language() === "en" ? "切换为中文" : "Switch to English";
-}
-languageButton();
-$("language").addEventListener("click", () => {
-  setLanguage(language() === "en" ? "zh-CN" : "en");
-  languageButton();
-  if (project) render();
-  const state = $("save-state");
-  saveState(state.dataset.state || "saved", state.dataset.detail);
-});
