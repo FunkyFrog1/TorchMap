@@ -66,7 +66,7 @@ async function main() {
   });
   server.listen(port, "127.0.0.1", () => {
     const url = "http://127.0.0.1:" + server.address().port + "/";
-    console.log("TensorMap  " + url);
+    console.log("TorchMap  " + url);
     if (open) browser(url);
   });
 }

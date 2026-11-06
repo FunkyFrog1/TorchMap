@@ -1,11 +1,11 @@
 ---
-name: tensormap
-description: Use when a user wants to track model experiments in TensorMap, connect a version to its parent, publish training metrics or checkpoint evaluations, or verify and compare runs.
+name: torchmap
+description: Use when a user wants to track model experiments in TorchMap, connect a version to its parent, publish training metrics or checkpoint evaluations, or verify and compare runs.
 ---
 
-# TensorMap experiment tracking
+# TorchMap experiment tracking
 
-Identify the target project and its writer before changing files. Read the deployment's TENSORMAP_TEAM.md if present at the workspace root or TensorMap deployment root. It identifies the authoritative data source, storage rules and viewer address. Use the user's own access. Recording a run does not require starting it.
+Identify the target project and its writer before changing files. Read the deployment's TENSORMAP_TEAM.md if present at the workspace root or TorchMap deployment root. It identifies the authoritative data source, storage rules and viewer address. Use the user's own access. Recording a run does not require starting it.
 
 ## Choose the protocol
 

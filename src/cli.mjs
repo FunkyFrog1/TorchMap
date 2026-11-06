@@ -7,7 +7,7 @@ import { protocol } from "./protocol/events.mjs";
 const base = process.env.TENSORMAP_URL || "http://127.0.0.1:18770";
 const project = process.env.TENSORMAP_PROJECT || "default";
 const [cmd, ...args] = process.argv.slice(2);
-const help = `TensorMap | CLI
+const help = `TorchMap | CLI
   projects                         list projects
   project <title>                  create an empty project
   version <json-file>              create {node, parents:[{id,kind}]}

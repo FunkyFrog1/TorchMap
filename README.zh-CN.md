@@ -1,34 +1,42 @@
-# TensorMap
+# TorchMap 🗺️
 
-在地图上点击模型卡，选择 Run，并用「对比」加选其他实验。默认叠加直接父版。训练、验证和测试页按记录的每个数值指标自动生成卡片。
+[English](README.md)
 
-**目录模式**按「项目 / 日期 / NNN_模型版本 / runs / 运行」读取实验。一张卡对应一个版本，同版本的多次训练分别保存。用 `node src/directory-server.mjs <项目总目录>` 启动只读监控。[正式目录协议 v1](docs/protocol/directory-v1.zh-CN.md)
+这条曲线是哪版模型跑的？评测用的又是哪一步的权重？TorchMap 把**模型版本画成路线图**，每张卡片下面挂自己的训练和评测记录。终于可以让文件夹里的「最终版_真的最终版_3」退休了。
 
-[English](README.md) · [实验协议 v0.1 草案](docs/protocol/v0.1.zh-CN.md)
+![虚构示例的模型路线图，展示基线与从检查点续训的分支](docs/assets/torchmap-lineage.png)
 
-用一张地图追踪模型从哪一版演变而来，点开卡片查看相应训练、权重、评测和曲线。TensorMap 是 Experiment-Map 的后续版本：保留按日期排卡、拖拽建分支、多项目、中英文和主题。地图上的状态和手填指标是研究者的记录；运行面板反映程序实际报告的进度。
+### 顺着路线找模型 🧬
 
-**快速体验**（Node.js 22+，运行时无第三方依赖）：
+单击卡片，高亮这版模型的上游；双击进入训练页，默认叠加直接上游的曲线。想把另一条分支也拉来对照，在地图上勾选它就好。点悬浮缩略图，随时回到地图。
+
+### 把关心的曲线钉起来 📈
+
+训练、验证和测试分别展示。展开指标组，把关心的曲线钉到顶部；在同一个项目里换模型，图钉也跟着走。评测点按**被评权重的训练步数**落在横轴上。哪怕一次评测只跑了 32 批，40K 权重的成绩也会画在 40K。
+
+![虚构示例中，基线与续训分支的训练损失对比](docs/assets/torchmap-curves.png)
+
+### 在本机逛一圈 🚀
+
+准备 Node.js 22 或更高版本，运行：
 
 ```sh
+git clone https://github.com/FunkyFrog1/TorchMap.git
+cd TorchMap
 npm start
-# 另开终端。下面命令创建一个独立的虚构项目，并打印可直接打开的链接：
-node examples/walkthrough.mjs
 ```
 
-服务默认 http://127.0.0.1:18770 。点开子版本，展开地图工具栏的“对比”，可叠加不同版本的训练 loss，也可按数据集和评测口径查看 checkpoint 的对应成绩。训练中断重试会保留各次尝试的曲线。卡片下支持查看手工上传的笔记与图片。
+打开[本地页面](http://127.0.0.1:18770)。另开一个终端，运行 `node examples/walkthrough.mjs`，点开它打印的链接。示例包含基线、从 40K 权重续训的分支，以及留出集评测。全程不用显卡，示例里的 loss 也是编的。
 
-**接入自己的实验**：用网页建版本，用 `node src/cli.mjs projects` 查看项目 ID，通过 `TENSORMAP_PROJECT` 选择项目；CLI 默认连接本机服务，可用 `TENSORMAP_URL` 改地址。训练程序通过简单的 HTTP JSON 上报；不想改训练框架时，也可从现有日志转换后上报。不要向 SDK 上传波形、权重或逐事件明细。可运行的 [完整接入示例](examples/walkthrough.mjs) 演示分支续训、注册 EMA 权重、不同 checkpoint 验证和曲线。
+### 接入自己的实验 🔌
 
-```sh
-node src/cli.mjs help
-node src/cli.mjs snapshot
-node src/cli.mjs event event.json
-node src/cli.mjs attach my-version notes.md
-```
+| 手头有什么 | 怎么接入 |
+| --- | --- |
+| 共享盘上的实验目录 | 运行 `node src/directory-server.mjs <项目总目录>`。日期目录下每个版本对应一张卡，卡片下面可以有多个 run。[目录协议](docs/protocol/directory-v1.zh-CN.md) |
+| 可以上报事件的训练脚本 | 运行 `node src/cli.mjs help`，或参考 [HTTP 示例](examples/walkthrough.mjs)，记录指标、登记权重，并指定每次评测使用的检查点。[事件协议](docs/protocol/v0.1.zh-CN.md) |
+| 帮忙接实验的 AI | 在本仓库打开 Codex 即可发现 [TorchMap skill](.agents/skills/torchmap/SKILL.md)，也可以把[便携版](skills/torchmap/)复制到自己的工作区。 |
 
-在本仓库打开 Codex 会话即可自动发现 [TensorMap skill](.agents/skills/tensormap/SKILL.md)。它支持目录协议和事件 API。其他工作区可安装 `skills/tensormap/`；团队部署约定写入工作区或部署根目录的 `TENSORMAP_TEAM.md`。附件是已有的人工作品，本版没有 AI 自动生成实验日志。
+任何训练框架都可以按协议写入数据。已有的 `tensormap/…` 协议标识、`TENSORMAP_*` 环境变量和数据目录沿用原名，已有实验可以继续读取。共享部署请通过本机回环地址或 SSH 隧道访问，服务没有内置登录鉴权。
 
-**数据与升级**：首次启动会把旧版活动地图复制到独立的 `data/tensormap/`，旧文件保留。可用 `TENSORMAP_HOME` 指定新的存储目录。完整备份请停止写入后复制整个工作区；画布导出的 JSON 只含地图。本地服务限单用户，请勿直接暴露到公网。强制终止后如出现 writer.lock，可核对其中 PID，确认旧服务已退出再移除锁文件。已有训练可仅上报，不受 TensorMap 控制；`exec` 仅托管直接启动的本地子进程。尚无远程调度、原生 TensorBoard 导入或 GPU 自动采集。
-
-开发：`npm ci`、`npm test`、`npx playwright install chromium`、`npm run test:ui`。更多地图操作见[旧版地图指南](docs/map-guide.zh-CN.md)，存储和接口以新协议为准。MIT。
+**开发** · `npm ci` · `npm test` · `npx playwright install chromium` · `npm run test:ui`
+[MIT 许可证](LICENSE)

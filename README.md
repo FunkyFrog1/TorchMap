@@ -1,17 +1,42 @@
-# TensorMap
+# TorchMap 🗺️
 
-Select a model, its run and optional comparison runs on the map. Direct parents are compared by default. Training, validation and test pages create one card per recorded scalar.
+[简体中文](README.zh-CN.md)
 
-**Directory mode:** one dated version folder per map card, with independent training runs under `runs/`. Start the read-only viewer with `node src/directory-server.mjs <projects-root>`. [Directory protocol v1 (Chinese)](docs/protocol/directory-v1.zh-CN.md)
+Which model gave you that curve? And which checkpoint did you actually evaluate? TorchMap puts **model versions on a map**, with training runs and checkpoint evaluations attached to each version. Give `final_final_v3` a well-earned retirement.
 
-[简体中文](README.zh-CN.md) · [Protocol v0.1 draft (Chinese)](docs/protocol/v0.1.zh-CN.md)
+![TorchMap model lineage with a baseline and a checkpoint continuation](docs/assets/torchmap-lineage.png)
 
-A local model lineage map with live training runs and checkpoint-linked evaluations. Keep the date columns, draggable branches, bilingual UI and themes of Experiment-Map. Select a card to inspect runs or compare scalar curves with its parents. Research notes on a card are distinct from events reported by a process.
+### Follow a branch 🧬
 
-With Node.js 22 or later, run `npm start` and open http://127.0.0.1:18770 . No production dependencies or build required. In a second terminal run `node examples/walkthrough.mjs` to create a **new fictional project** and print a link to its training branch. Use **Compare** in the map toolbar. Train curves separate attempts; evaluation curves use the training step of the exact evaluated weights and separate datasets, evaluation protocols and weight variants.
+Click a model to highlight its ancestors. Double-click to open its training curves. TorchMap compares the direct parent by default; tick other cards on the map to build your own comparison. Click the floating minimap to get back.
 
-Use `node src/cli.mjs help` for registering projects, versions, runs, metrics and checkpoints. Set `TENSORMAP_PROJECT` to the project ID and `TENSORMAP_URL` to the local service or tunnel. The [working example](examples/walkthrough.mjs) uses plain HTTP. Codex discovers the [TensorMap skill](.agents/skills/tensormap/SKILL.md) when you open this checkout. To use it in another workspace, install the portable skills/tensormap/ folder. It covers both directory projects and the event API. Put deployment-specific rules in TENSORMAP_TEAM.md at the workspace or deployment root. Attach existing Markdown notes or PNG/JPEG figures; there is no AI journal writer.
+### Read the curves 📈
 
-On first startup active Experiment-Map projects are **copied** into `data/tensormap/`. Existing maps are untouched. `TENSORMAP_HOME` overrides the workspace. To back everything up, stop writes and copy the workspace; map JSON export contains lineage only. One server writes each workspace. After a forced exit, check the PID in writer.lock before removing a stale lock. Use only loopback or an SSH tunnel; there is no multi-user authentication. External processes report their own state. The CLI can supervise a directly launched local child; remote scheduling, TensorBoard event import and automatic GPU sampling are outside this draft.
+Training, validation and test metrics have their own views. Expand a group and pin the metrics you care about. Pins follow you across models in the same project. Evaluation points sit at the training step of the checkpoint that produced them, so “evaluation batch 32” never gets mistaken for “training step 32.”
 
-Development: `npm ci`, `npm test`, `npx playwright install chromium`, `npm run test:ui`. The [historical map guide](docs/map-guide.md) documents canvas interactions. MIT.
+![Training loss for the fictional baseline and continuation on the same axes](docs/assets/torchmap-curves.png)
+
+### Try it locally 🚀
+
+With Node.js 22 or later:
+
+```sh
+git clone https://github.com/FunkyFrog1/TorchMap.git
+cd TorchMap
+npm start
+```
+
+Open [the local viewer](http://127.0.0.1:18770). In a second terminal, run `node examples/walkthrough.mjs` and open the link it prints. The fictional example includes a baseline, a branch resumed from its 40K checkpoint and held-out evaluations. No GPU required. The losses are fictional too.
+
+### Bring your own experiment 🔌
+
+| What you have | Where to start |
+| --- | --- |
+| A shared directory of experiments | Run `node src/directory-server.mjs <projects-root>`. Each dated version folder becomes a card, with its own runs underneath. [Directory format (Chinese)](docs/protocol/directory-v1.zh-CN.md) |
+| A script that can emit events | Run `node src/cli.mjs help` or adapt the [HTTP walkthrough](examples/walkthrough.mjs). Report metrics, register checkpoints and link evaluations to the weights you used. [Event format (Chinese)](docs/protocol/v0.1.zh-CN.md) |
+| A coding agent | Open this checkout for the [discoverable skill](.agents/skills/torchmap/SKILL.md), or copy the [portable skill](skills/torchmap/) into your workspace. |
+
+TorchMap works with any framework that writes the protocol. Existing `tensormap/…` protocol identifiers, `TENSORMAP_*` environment variables and data directories keep their original names so existing runs stay readable. Use loopback or an SSH tunnel for a shared server; the service has no built-in authentication.
+
+**Development** · `npm ci` · `npm test` · `npx playwright install chromium` · `npm run test:ui`
+[MIT license](LICENSE)

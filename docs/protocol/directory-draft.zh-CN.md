@@ -1,4 +1,4 @@
-# TensorMap 项目目录协议 · 讨论稿
+# TorchMap 项目目录协议 · 讨论稿
 
 本稿保留设计讨论。实施约定以[正式目录协议 v1](directory-v1.zh-CN.md)为准。
 
@@ -7,7 +7,7 @@
 ## 目录先按研究者的习惯组织
 
 ```text
-TensorMap/
+TorchMap/
   image-generation/
     project.json
     2026-11-01/

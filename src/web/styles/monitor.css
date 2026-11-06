@@ -556,8 +556,8 @@ body.console-mode[data-page="roadmap"] .workspace .map-panel{flex:1 1 0;height:a
 body.console-mode[data-page="roadmap"] .map-panel .viewport{min-height:0}
 
 /* Lining, fixed-width digits even in mixed Chinese model names and labels. */
-@font-face{font-family:TensorMapDigits;src:local("Consolas"),local("Liberation Mono"),local("Courier New");unicode-range:U+0030-0039;font-weight:100 900}
-body.console-mode,:is(.console-mode) :is(.node-title,.node-change,.date-heading strong,.date-heading span,.node-footer,.progress-value,.map-toolbar,.map-toolbar select,.map-toolbar output,.counts,.inspector,.inspector h1,.inspector h3,.preserve-lines,.eyebrow,.metric-card h2,.monitor-muted,.monitor-legend,.metric-group summary,.map-compare-options label){font-family:TensorMapDigits,var(--report-font);font-variant-numeric:lining-nums tabular-nums}
+@font-face{font-family:TorchMapDigits;src:local("Consolas"),local("Liberation Mono"),local("Courier New");unicode-range:U+0030-0039;font-weight:100 900}
+body.console-mode,:is(.console-mode) :is(.node-title,.node-change,.date-heading strong,.date-heading span,.node-footer,.progress-value,.map-toolbar,.map-toolbar select,.map-toolbar output,.counts,.inspector,.inspector h1,.inspector h3,.preserve-lines,.eyebrow,.metric-card h2,.monitor-muted,.monitor-legend,.metric-group summary,.map-compare-options label){font-family:TorchMapDigits,var(--report-font);font-variant-numeric:lining-nums tabular-nums}
 .console-mode .map-toolbar #zoom-level,.console-mode .card-progress .progress-value,.console-mode .map-toolbar .counts,.console-mode .metric-card .monitor-chart :is(text,.plot-tooltip){font-family:Consolas,"Liberation Mono",monospace;font-variant-numeric:lining-nums tabular-nums}
 
 @media(min-width:1001px){body.console-mode{column-gap:0}.console-mode .project-dashboard{border-left:0;border-top-left-radius:0;border-bottom-left-radius:0}}
@@ -611,7 +611,7 @@ html.map-morph::view-transition-old(root),html.map-morph::view-transition-new(ro
 .console-mode .metric-tools button:is(:hover,:focus-visible){background:#f2f4f3;color:var(--ink)}
 .console-mode .metric-tools button[aria-pressed=true]{background:#edf1f0;color:#334e59}
 .console-mode .monitor-nav button,.console-mode .monitor-muted,.console-mode .inspector .detail-section>h3,.console-mode .date-heading span{
-  font-family:TensorMapDigits,"Segoe UI","Microsoft YaHei",sans-serif;
+  font-family:TorchMapDigits,"Segoe UI","Microsoft YaHei",sans-serif;
 }
 .console-mode .inspector .detail-section>h3{font-size:12px;font-weight:600;color:#53636a}
 .console-mode .change-markdown th{background:#f4f6f5;text-align:start}

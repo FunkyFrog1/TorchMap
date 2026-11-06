@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.0 · TensorMap protocol preview
+## 0.5.0 · TorchMap protocol preview
 
 Separate maps from append-only run events. Add attempts, checkpoint-linked evaluation, CLI, a local process wrapper, manual attachments and an optional agent skill. First start copies active legacy maps into a separate workspace.
 
