@@ -5,7 +5,7 @@
 TorchMap 让团队共同维护一张模型版本路线图。每张卡代表一个模型版本，记录它从哪一版演变而来、主要改了什么。打开卡片，就能查看这个版本的各次训练、配置、权重，以及对应的验证和测试结果。
 
 <p align="center">
-  <a href="docs/assets/torchmap-layouts.gif"><img src="docs/assets/torchmap-layouts.gif" alt="真实团队项目的 24 个模型版本在日期布局与版本代际布局间切换" width="760"></a>
+  <a href="docs/assets/torchmap-layouts.gif"><img src="docs/assets/torchmap-layouts.gif" alt="真实团队项目的 24 个模型版本在日期布局与版本代际布局间切换" width="620"></a>
 </p>
 
 动图取自真实研究项目的版本关系，模型名和具体改动已脱敏。🐸 和 🐵 代表两位贡献者。**按日期**看，可以知道团队在同一时期并行尝试了哪些方案；**按代数**看，同一代的分支排在一起，更容易追溯它们共同的起点。切换布局时，选中版本的上游路线持续高亮。

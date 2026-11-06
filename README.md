@@ -5,7 +5,7 @@
 TorchMap gives a research team one shared map of its model versions. Each card records what changed and which version it came from. Open a card to inspect its training runs, configurations, checkpoints, and validation and test results.
 
 <p align="center">
-  <a href="docs/assets/torchmap-layouts.gif"><img src="docs/assets/torchmap-layouts.gif" alt="A team’s 24 model versions switching between date and generation layouts" width="760"></a>
+  <a href="docs/assets/torchmap-layouts.gif"><img src="docs/assets/torchmap-layouts.gif" alt="A team’s 24 model versions switching between date and generation layouts" width="620"></a>
 </p>
 
 These are the relationships from a working research project, with model names and change notes anonymized. 🐸 and 🐵 distinguish the two contributors. **By date** shows what the team worked on at the same time. **By generation** brings sibling experiments together, so you can trace a branch back to its baseline. The selected lineage stays highlighted as the cards move.
