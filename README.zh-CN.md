@@ -1,39 +1,36 @@
-# TorchMap 🗺️
+# TorchMap
 
 [English](README.md)
 
-**TorchMap 是团队共用的模型版本路线图。** 每当有人尝试一个新想法，就从对应的上游模型拉出一张卡，写下谁改了什么。这个版本的配置、每次训练的曲线和权重，以及后来补跑的验证、测试，都挂在这张卡下面。下次组会有人问「这个结果是从哪版改出来的？」，点一下地图就能一起看。
+TorchMap 让团队共同维护一张模型版本路线图。每张卡代表一个模型版本，记录它从哪一版演变而来、主要改了什么。打开卡片，就能查看这个版本的各次训练、配置、权重，以及对应的验证和测试结果。
 
-![线上团队路线图，展示 24 张模型卡和 Model 15 的上游路线](docs/assets/torchmap-lineage.png)
+![真实团队项目的 24 个模型版本在日期布局与版本代际布局间切换](docs/assets/torchmap-layouts.gif)
 
-这是团队线上项目的一个工作截面：**两位成员、7 个实验日期、24 个模型版本、23 条关系**。沿高亮路线可以找到 Model 15 的来历：它从 Model 12 的权重继续训练，所以两张卡之间是虚线。其他探索保留在旁边；截图时，右侧还有两版正在训练。成员和模型使用代号，具体改动已遮盖。
+动图取自真实研究项目的版本关系，模型名和具体改动已脱敏。🐸 和 🐵 代表两位贡献者。**按日期**看，可以知道团队在同一时期并行尝试了哪些方案；**按代数**看，同一代的分支排在一起，更容易追溯它们共同的起点。切换布局时，选中版本的上游路线持续高亮。
 
-### 一张模型卡能回答什么？ 🔬
+## 用路线图管理实验
 
-| 组会上常听到的问题 | 去哪里看 |
-| --- | --- |
-| 这版跟上版差在哪？ | 选中模型卡，看作者、主要改动和详细说明；按日期或迭代代数查看上下游。 |
-| 换个 seed 又跑了一次，记在哪？ | 同一模型卡下新建一个训练 run，分别保留配置、训练步、曲线和 checkpoint。 |
-| 这两个 loss 是同一轮实验吗？ | 双击卡片进入训练页，默认与直接上游对比，也能在地图上勾选其他版本。 |
-| 昨天补测的 40K 权重，成绩记在哪？ | 验证和测试分别挂回产生权重的 run，曲线按 **40K** 对齐。数据集、评测口径和权重类型随结果保留。 |
+修改模型结构或训练策略时，新建一张卡，连到上游版本，写明改动，以及这次是从头训练还是从某个 checkpoint 续训。如果只是更换随机种子重复实验，在同一张卡下新增一次运行即可。
 
-下面两张图跟的是地图上的同一对模型。先看训练：Model 15 从 Model 12 的中途接上，两条学习率曲线随后分开。再切到测试页，就能比较这两版各个 checkpoint 的实际表现。曲线保留了真实走势，精确读数和数据集名称已隐藏。
+双击卡片进入训练页，默认与直接上游比较。在地图上勾选其他卡片，还可以把更多分支加入对照。下图中，一个版本从上游的中途权重续训，两条学习率曲线从这里开始分开。
 
-![线上项目中 Model 12 与 Model 15 的训练损失和学习率](docs/assets/torchmap-curves.png)
+![上游版本与续训版本的训练损失和学习率对比](docs/assets/torchmap-curves.png)
 
-![同一对模型在不同检查点的线上测试结果](docs/assets/torchmap-test.png)
+验证和测试结果挂在实际参与评测的 checkpoint 上。即使训练结束后才补测 40K 权重，得分也会出现在横轴的第 40,000 步。结果同时记录数据集、评测口径和所用权重版本，方便团队核对两条曲线能否直接比较。
 
-### 让 Codex 帮你维护这张图 🛠️
+![相同两个模型版本在各个 checkpoint 上的测试表现](docs/assets/torchmap-test.png)
 
-**TorchMap 已提供可被 Codex 自动发现的 [Skill](.agents/skills/torchmap/SKILL.md)。** 在这个仓库里打开 Codex，告诉它要登记哪个项目、用的是哪份实验目录，剩下用自然语言交代即可。团队成员不用学字段名，也不用手填 JSON。例如：
+## 用 Codex 接入实验
 
-> 用 TorchMap 登记这次实验。从 M1 分出「标签平滑」，从零训练，把这次 run 的配置和 loss 接进去。40K 权重的验证和测试已经跑完，请把已有结果挂回这个 checkpoint，核对网页上能看到两组指标。
+项目内置了 [Codex Skill](.agents/skills/torchmap/SKILL.md)。在 Codex 中打开仓库，提供共享项目目录和实验产物路径，就可以直接用自然语言登记模型、关联训练和补充评测。例如：
 
-第一次接团队项目，需要提供可访问的项目目录和真实实验输出。之后同事在自己的工作区装上[同一份 Skill](skills/torchmap/)，就能维护同一张图。
+> 在 M1 下新建一个标签平滑分支，这次从头训练。挂上这次运行的配置和 loss，再把验证、测试报告关联到 40K 权重。
 
-### 在本机逛一圈 🚀
+在其他代码仓库工作的同事，也可以安装[独立版 Skill](skills/torchmap/)，共同维护同一张图。
 
-准备 Node.js 22 或更高版本，运行：
+## 本地运行
+
+需要 Node.js 22 或更高版本。
 
 ```sh
 git clone https://github.com/FunkyFrog1/TorchMap.git
@@ -41,17 +38,15 @@ cd TorchMap
 npm start
 ```
 
-打开[本地页面](http://127.0.0.1:18770)。另开一个终端，运行 `node examples/walkthrough.mjs`，点开它打印的链接。示例包含基线、从 40K 权重续训的分支，以及留出集评测。全程不用显卡，示例里的 loss 也是编的。
+打开[本地页面](http://127.0.0.1:18770)。要体验完整示例，在第二个终端运行 `node examples/walkthrough.mjs`，打开它输出的地址。示例包含基线模型、从 40K 权重续训的分支和后续评测。
 
-### 接入自己的实验 🔌
+## 接入自己的项目
 
-| 手头有什么 | 怎么接入 |
-| --- | --- |
-| 共享盘上的实验目录 | 运行 `node src/directory-server.mjs <项目总目录>`。日期目录下每个版本对应一张卡，卡片下面可以有多个 run。[目录协议](docs/protocol/directory-v1.zh-CN.md) |
-| 可以上报事件的训练脚本 | 运行 `node src/cli.mjs help`，或参考 [HTTP 示例](examples/walkthrough.mjs)，记录指标、登记权重，并指定每次评测使用的检查点。[事件协议](docs/protocol/v0.1.zh-CN.md) |
-| 帮忙接实验的 AI | 在本仓库打开 Codex 即可发现 [TorchMap skill](.agents/skills/torchmap/SKILL.md)，也可以把[便携版](skills/torchmap/)复制到自己的工作区。 |
+- **已有实验目录**。运行 `node src/directory-server.mjs <projects-root>` 浏览共享项目。每个日期下按模型版本建立目录，各次训练放在对应版本下。[目录协议](docs/protocol/directory-v1.zh-CN.md)
+- **对接训练或评测脚本**。运行 `node src/cli.mjs help`，或参考 [HTTP 示例](examples/walkthrough.mjs)，上报指标、登记 checkpoint 并关联评测结果。[事件协议](docs/protocol/v0.1.zh-CN.md)
 
-任何训练框架都可以按协议写入数据。已有的 `tensormap/…` 协议标识、`TENSORMAP_*` 环境变量和数据目录沿用原名，已有实验可以继续读取。共享部署请通过本机回环地址或 SSH 隧道访问，服务没有内置登录鉴权。
+协议可用于不同训练框架。已有项目沿用 `tensormap/…` 协议标识和 `TENSORMAP_*` 环境变量。共享部署建议通过本机回环地址或 SSH 隧道访问，服务本身未内置身份认证。
 
-**开发** · `npm ci` · `npm test` · `npx playwright install chromium` · `npm run test:ui`
+**开发检查** · `npm ci` · `npm test` · `npx playwright install chromium` · `npm run test:ui`
+
 [MIT 许可证](LICENSE)
