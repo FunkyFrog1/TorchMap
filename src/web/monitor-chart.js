@@ -1,12 +1,9 @@
 const NS = "http://www.w3.org/2000/svg";
-const colors = [
-  "#49728f",
-  "#c97e44",
-  "#658344",
-  "#85679c",
-  "#448d86",
-  "#a64e6d",
-];
+export function experimentColor(id) {
+  let hash = 2166136261;
+  for (const char of id) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+  return "hsl(" + (((hash >>> 8) + 240) % 360) + " 40% var(--curve-lightness, 44%))";
+}
 function shape(tag, attrs, text) {
   const n = document.createElementNS(NS, tag);
   for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
@@ -20,7 +17,22 @@ function tick(n) {
 }
 const zoomWindows = new Map();
 let chartNumber = 0;
-export function curve(series, xLabel, empty, key, translate, actions) {
+
+function legendValue([step, value], metricName, translate) {
+  const percent = metricName.includes("%");
+  const score = percent ? value.toFixed(2) + "%" : Number(value.toPrecision(5)).toString();
+  const cell = document.createElement("small");
+  cell.className = "legend-stat";
+  const measured = document.createElement("span");
+  measured.textContent = score;
+  const iteration = document.createElement("span");
+  iteration.textContent = step.toLocaleString("en");
+  cell.append(measured, iteration);
+  cell.title = value + (percent ? "%" : "") + " · " + translate("步数", "Step") + " " + step;
+  return cell;
+}
+
+export function curve(series, metricName, empty, key, translate, actions) {
   const box = document.createElement("div");
   box.className = "monitor-chart";
   series = series.filter((s) => s.points.length);
@@ -55,7 +67,7 @@ export function curve(series, xLabel, empty, key, translate, actions) {
   if(saved)[x0,x1,y0,y1]=saved;
   function redraw(bounds){
     if(bounds)zoomWindows.set(key,bounds);else zoomWindows.delete(key);
-    box.replaceWith(curve(series,xLabel,empty,key,translate,actions));
+    box.replaceWith(curve(series,metricName,empty,key,translate,actions));
   }
   actions.replaceChildren();
   for(const [glyph,label,callback] of [
@@ -77,20 +89,25 @@ export function curve(series, xLabel, empty, key, translate, actions) {
       shape("text", { x: 60, y: py(y) + 4, "text-anchor": "end" }, scientific?y.toExponential(2):tick(y)),
     );
   }
-  const ticks = 8;
-  for (let i = 0; i <= ticks; i++) {
-    const x = x0 + ((x1 - x0) * i) / ticks;
-    plot.append(
-      shape("path",{d:"M"+px(x)+" 20V246",class:"chart-grid"}),
-      ...(i%2===0 ? [shape("text", { x: px(x), y: 263, "text-anchor": "middle" }, tick(x))] : []),
-    );
+  const target = (x1 - x0) / 4;
+  const magnitude = 10 ** Math.floor(Math.log10(target));
+  const spacing = Math.max(1, magnitude * [1, 2, 5, 10].reduce((best, n) =>
+    Math.abs(n - target / magnitude) < Math.abs(best - target / magnitude) ? n : best));
+  const major = x1 - x0 >= 2000 ? Math.max(1000, spacing) : spacing;
+  const minor = major >= 2 ? major / 2 : major;
+  for (let i = Math.max(0, Math.ceil(x0 / minor)); i <= Math.floor(x1 / minor); i++) {
+    const step = i * minor;
+    plot.append(shape("path", { d: "M" + px(step) + " 20V246", class: "chart-grid" }));
+    if (step % major === 0) {
+      const label = step >= 1000 && step % 1000 === 0 ? step / 1000 + "K" : String(step);
+      plot.append(shape("text", { x: px(step), y: 263, "text-anchor": "middle" }, label));
+    }
   }
 
   const legend = document.createElement("div");
   legend.className = "monitor-legend";
-  series.forEach(({ label, points, dashed }, i) => {
-    const c = colors[i % colors.length],
-      ordered = [...points].sort((a, b) => a[0] - b[0]);
+  series.forEach(({ label, points, dashed, color: c }) => {
+    const ordered = [...points].sort((a, b) => a[0] - b[0]);
     drawing.append(
       shape("polyline", {
         points: ordered.map(([x, y]) => px(x) + "," + py(y)).join(" "),
@@ -105,12 +122,19 @@ export function curve(series, xLabel, empty, key, translate, actions) {
         const dot = shape("circle", { cx: px(x), cy: py(y), r: 3.3, fill: c });
         drawing.append(dot);
       }
-    const key = document.createElement("span");
+    const row = document.createElement("div");
+    row.className = "legend-series";
     const mark = document.createElement("i");
     mark.style.backgroundColor = c;
     if (dashed) mark.style.borderTopStyle = "dashed";
-    key.append(mark, label);
-    legend.append(key);
+    const name = document.createElement("span");
+    name.className = "legend-name";
+    name.textContent = name.title = label;
+    const stats = document.createElement("div");
+    stats.className = "legend-stats";
+    stats.append(legendValue(ordered.at(-1), metricName, translate));
+    row.append(mark, name, stats);
+    legend.append(row);
   });
   plot.append(drawing,shape("rect",{x:70,y:20,width:506,height:226,class:"plot-frame"}));
   const tip=shape("text",{x:568,y:34,"text-anchor":"end",class:"plot-tooltip","pointer-events":"none"});plot.append(tip);tip.style.visibility="hidden";
@@ -122,10 +146,10 @@ export function curve(series, xLabel, empty, key, translate, actions) {
     const p=new DOMPoint(e.clientX,e.clientY).matrixTransform(plot.getScreenCTM().inverse());
     if(p.x<70||p.x>576||p.y<20||p.y>246){hideTip();return;}
     let best=null,distance=Infinity;
-    series.forEach((s,i)=>{for(const [x,y] of s.points){
+    series.forEach((s)=>{for(const [x,y] of s.points){
       if(x<x0||x>x1||y<y0||y>y1)continue;
       const d=(px(x)-p.x)**2+(py(y)-p.y)**2;
-      if(d<distance){distance=d;best={x,y,label:s.label,color:colors[i%colors.length]};}
+      if(d<distance){distance=d;best={x,y,label:s.label,color:s.color};}
     }});
     if(!best){hideTip();return;}
     cursor.setAttribute("cx",px(best.x));cursor.setAttribute("cy",py(best.y));cursor.setAttribute("fill",best.color);cursor.setAttribute("visibility","visible");

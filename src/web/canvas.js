@@ -1,4 +1,4 @@
-import { t, language, setLanguage } from "./i18n.js";
+import { t, language, tr, setLanguage } from "./i18n.js";
 import {
   COLORS,
   STATUS,
@@ -191,7 +191,7 @@ export class MapCanvas {
         element(
           "strong",
           "",
-          byGeneration?(language()==="en"?"Generation "+column.key:"第 "+column.key+" 代"):new Intl.DateTimeFormat(language(), {
+          byGeneration?tr("第{n}代","Generation {n}").replace("{n}",column.key):new Intl.DateTimeFormat(language(), {
             month: "short",
             day: "numeric",
             timeZone: "UTC",
@@ -309,7 +309,7 @@ export class MapCanvas {
       this.world.append(handle);
       const compare = element("button", "compare-toggle");
       compare.type = "button";
-      compare.title = (language() === "en" ? "Compare · " : "加入对比 · ") + node.title;
+      compare.title = (tr("加入对比 · ","Compare · ")) + node.title;
       compare.setAttribute("aria-label", compare.title);
       const box = svg("svg", {viewBox:"0 0 20 20", "aria-hidden":"true"});
       box.append(svg("rect", {x:2,y:2,width:16,height:16,rx:3}), svg("path", {d:"m5 10 3 3 7-7"}));
@@ -581,7 +581,7 @@ export class MapCanvas {
   setMiniPage(isMap){
     if (!isMap) clearTimeout(this.blankClickTimer);
     this.mini.hidden=isMap;
-    this.mini.title=isMap?(language()==="en"?"Close model map":"收起模型地图"):(language()==="en"?"Open model map":"展开模型地图");
+    this.mini.title=isMap?(tr("收起模型地图","Close model map")):(tr("展开模型地图","Open model map"));
     this.mini.setAttribute("aria-label",this.mini.title);
     this.mini.setAttribute("aria-expanded",String(isMap));
   }
@@ -593,11 +593,11 @@ export class MapCanvas {
     this.miniView.replaceChildren();
     for(const {edge,path} of this.paths){
       const on = related.has(edge.from) && related.has(edge.to);
-      this.miniView.append(svg("path",{d:path.getAttribute("d"),fill:"none",stroke:on ? path.style.getPropertyValue("--accent") : "#d5d6d6","stroke-width":on ? 7 : 4,"stroke-dasharray":edge.kind==="finetune" ? "13 9" : "none"}));
+      this.miniView.append(svg("path",{d:path.getAttribute("d"),fill:"none",stroke:on ? path.style.getPropertyValue("--accent") : "var(--mini-muted, #d5d6d6)","stroke-width":on ? 7 : 4,"stroke-dasharray":edge.kind==="finetune" ? "13 9" : "none"}));
     }
     for(const n of nodes){
       const active=n.id===this.selected;
-      this.miniView.append(svg("rect",{x:n.x,y:n.y,width:nodeWidth,height:nodeHeight,rx:8,fill:related.has(n.id) ? COLORS[n.accent]||"#9ba6aa" : "#dadbda",stroke:active?"#3a555e":"none","stroke-width":10}));
+      this.miniView.append(svg("rect",{x:n.x,y:n.y,width:nodeWidth,height:nodeHeight,rx:8,fill:related.has(n.id) ? COLORS[n.accent]||"#9ba6aa" : "var(--mini-muted, #dadbda)",stroke:active?"var(--mini-selected, #3a555e)":"none","stroke-width":10}));
     }
     this.miniFrame=svg("rect",{class:"mini-frame"});
     this.miniView.append(this.miniFrame);
@@ -690,7 +690,7 @@ export class MapCanvas {
         const [v,t]=pairs[i],known=Number.isFinite(v)&&Number.isFinite(t)&&t>0;
         const pct=known?Math.max(0,Math.min(100,100*v/t)):0;
         line.lastChild.textContent=known?Number(pct.toFixed(1))+"%":"—";
-        line.title=known?v+" / "+t:language()==="en"?"Progress unavailable":"未上报完整进度";
+        line.title=known?v+" / "+t:tr("未上报完整进度","Progress unavailable");
         line.querySelector("i").style.width=pct+"%";
       });
     }

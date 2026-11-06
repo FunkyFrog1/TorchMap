@@ -1,5 +1,5 @@
 import "./interface.js";
-import { t, language } from "./i18n.js";
+import { t, language, tr } from "./i18n.js";
 import { MapCanvas } from "./canvas.js";
 import { NodeEditor } from "./editor.js";
 import {
@@ -217,13 +217,13 @@ function renderVersionBrief(target, node) {
     for (const change of node.changes) list.append(element("li", change));
     brief.append(list);
   } else brief.append(element("p", node.summary || "—"));
-  const detail = section(language() === "en" ? "Detailed changes" : "详细改动");
+  const detail = section(tr("详细改动","Detailed changes"));
   if (node.changeDetails) {
     const article = element("article", undefined, "change-markdown");
     detail.append(article);
     markdown ??= import("./vendor/markdown-it.min.js").then(() => globalThis.markdownit({html:false}));
     markdown.then(renderer => { article.innerHTML = renderer.render(node.changeDetails); });
-  } else detail.append(element("p", language() === "en" ? "No change notes yet." : "暂无详细记录。", "subtle"));
+  } else detail.append(element("p", tr("暂无详细记录。","No change notes yet."), "subtle"));
   target.append(brief, detail);
 }
 function details() {
@@ -468,6 +468,7 @@ async function refreshProjects() {
   for (const item of projects) {
     const option = element("option", item.title);
     option.value = item.id;
+    if (item.directory) option.dataset.directory = item.directory;
     picker.append(option);
   }
   picker.value = projectId;

@@ -1,16 +1,18 @@
 import {
+  settingsView,
   trainingView,
   evaluationView,
   el,
   tr,
 } from "./monitor-views.js";
-const views = ["training", "validation", "test", "roadmap", "config"];
+const views = ["training", "validation", "test", "roadmap", "config", "settings"];
 const titles = () => [
   tr("训练", "Training"),
   tr("验证", "Validation"),
   tr("测试", "Test"),
   tr("模型路线图", "Model lineage"),
   tr("配置","Configuration"),
+  tr("设置", "Settings"),
 ];
 const iconPaths = [
   "M3 17h3l3-11 4 14 3-9h5",
@@ -18,6 +20,7 @@ const iconPaths = [
   "M8 3h8 M10 3v6l-6 10q0 2 2 2h12q2 0 2-2l-6-10V3 M8 15h8",
   "M3 4h6v5H3z M15 3h6v5h-6z M15 15h6v5h-6z M9 6h6 M11 6v11h4",
   "M3 7h6m4 0h8M9 4v6M3 17h11m4 0h3m-7-3v6",
+  "M4 8h16M4 16h16 M8 5v6 M16 13v6",
 ];
 function icon(d) {
   const ns = "http://www.w3.org/2000/svg",
@@ -91,7 +94,13 @@ export function mountMonitor({
     body = el("div", null, "monitor-results"),
     notice = el("p", null, "monitor-notice");
   notice.setAttribute("role", "status");
-  main.append(notice, body);
+  const refreshBar = el("div", null, "monitor-refresh");
+  const updated = el("span", tr("正在获取数据…", "Fetching data…"));
+  const reload = el("button", tr("↻ 刷新", "↻ Refresh"));
+  reload.type = "button";
+  reload.onclick = refresh;
+  refreshBar.append(updated, reload);
+  main.append(refreshBar, notice, body);
   const workspace = document.querySelector(".workspace");
   const dashboard = el("div", null, "project-dashboard");
   workspace.before(dashboard);
@@ -101,7 +110,15 @@ export function mountMonitor({
 
   let configSignature;
   const center = el("div", null, "monitor-center");
-  center.append(main, configPanel);
+  const projectPicker = $("project-picker");
+  const projectLabel = menu.querySelector(".sidebar-label");
+  let timer;
+  function schedule(seconds) {
+    clearInterval(timer);
+    if (seconds) timer = setInterval(() => { if (!document.hidden) refresh(); }, seconds * 1000);
+  }
+  const settings = settingsView(projectPicker, schedule);
+  center.append(main, configPanel, settings.panel);
   const divider = el("div", null, "detail-divider");
   divider.tabIndex = 0;
   divider.setAttribute("role", "separator");
@@ -221,10 +238,13 @@ export function mountMonitor({
     workspace.hidden = !isMap;
     setMiniPage(isMap);
     center.hidden = isMap;
-    main.hidden = isMap || page==="config";
+    main.hidden = isMap || page==="config" || page==="settings";
+    settings.panel.hidden = page !== "settings";
+    if (page === "settings") settings.show(map.nodes);
+    else if (!menu.contains(projectPicker)) projectLabel.after(projectPicker);
     configPanel.hidden = page !== "config";
-    divider.hidden = isMap;
-    detailPage.hidden=isMap;
+    divider.hidden = isMap || page === "settings";
+    detailPage.hidden = divider.hidden;
     if (!isMap && wasMap) restoreWidth();
 
     emptyDetail.hidden=Boolean(selected);
@@ -268,6 +288,7 @@ export function mountMonitor({
       updateProgress(runs, runId);
       return;
     }
+    if (page === "settings") return;
     if (page === "config") {
       const note = map.nodes.find(n => n.id === selected)?.configuration;
       const configs = r ? [r, ...peers].map(run => ({
@@ -362,9 +383,7 @@ export function mountMonitor({
           body.append(block);
         }
       }
-      notice.textContent = r.stale
-        ? tr("最近未收到运行心跳", "No recent run heartbeat")
-        : "";
+      notice.textContent = "";
     } catch (e) {
       if (!signal.aborted)
         notice.textContent = tr("读取失败 · ", "Read failed · ") + e.message;
@@ -373,21 +392,24 @@ export function mountMonitor({
   async function refresh() {
     if (busy) return;
     busy = true;
+    reload.disabled = true;
     try {
       snap = await get("snapshot");
+      const time = new Date();
+      updated.textContent = tr("上次更新 ", "Last updated ") + time.toLocaleTimeString(document.documentElement.lang, {hour12:false});
+      updated.title = time.toLocaleString(document.documentElement.lang);
       await draw();
     } catch (e) {
-      notice.textContent = e.message;
+      notice.textContent = tr("刷新失败 · ", "Refresh failed · ") + e.message;
     } finally {
       busy = false;
+      reload.disabled = false;
     }
   }
 
   draw();
   refresh();
-  setInterval(() => {
-    if (!document.hidden) refresh();
-  }, 15000);
+  schedule(settings.seconds());
   const toggleMap=()=>changePage(page==="roadmap"?previousPage:"roadmap");
   document.addEventListener("keydown",e=>{if(e.key==="Escape" && page==="roadmap" && !document.querySelector("dialog[open]"))changePage(previousPage);});
   return {draw,changePage,toggleMap,page:()=>page};

@@ -27,7 +27,7 @@ node src/cli.mjs event event.json
 node src/cli.mjs attach my-version notes.md
 ```
 
-[配套 skill](skills/tensormap/SKILL.md) 用同一协议登记与查询实验，无需它也能运行本工具。需要时将整个 `skills/tensormap/` 复制到所用 agent 的 skills 目录，并指出 TensorMap 的安装目录。附件是已有的人工作品，本版没有 AI 自动生成实验日志。
+在本仓库打开 Codex 会话即可自动发现 [TensorMap skill](.agents/skills/tensormap/SKILL.md)。它支持目录协议和事件 API。其他工作区可安装 `skills/tensormap/`；团队部署约定写入工作区或部署根目录的 `TENSORMAP_TEAM.md`。附件是已有的人工作品，本版没有 AI 自动生成实验日志。
 
 **数据与升级**：首次启动会把旧版活动地图复制到独立的 `data/tensormap/`，旧文件保留。可用 `TENSORMAP_HOME` 指定新的存储目录。完整备份请停止写入后复制整个工作区；画布导出的 JSON 只含地图。本地服务限单用户，请勿直接暴露到公网。强制终止后如出现 writer.lock，可核对其中 PID，确认旧服务已退出再移除锁文件。已有训练可仅上报，不受 TensorMap 控制；`exec` 仅托管直接启动的本地子进程。尚无远程调度、原生 TensorBoard 导入或 GPU 自动采集。
 

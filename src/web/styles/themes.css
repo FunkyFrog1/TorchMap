@@ -21,93 +21,114 @@
   --card-rose: #ae939c;
   --card-slate: #8a96ad;
 }
-:root[data-theme="dune"] {
-  --page: #eee8db;
-  --panel: #fff9eb;
-  --canvas: #fbf4e5;
-  --subtle: #f3ead8;
-  --ink: #4b4032;
-  --ink-strong: #241e16;
-  --text: #6b5943;
-  --muted: #7b6b55;
-  --line: #dfd0b8;
-  --border: #bea787;
-  --action: #895b3f;
-  --secondary: #926b2c;
-  --card-gray: #9b9585;
-  --card-blue: #78949b;
-  --card-purple: #a58e9c;
-  --card-cyan: #8a9d8a;
-  --card-green: #9ca377;
-  --card-amber: #c3a362;
-  --card-rose: #be8f78;
-  --card-slate: #9995aa;
+/* Accent pairs and lineage colors. Preview chips use the same palette tokens. */
+:root[data-theme="dune"], .theme-choice[data-palette="dune"] {
+  --page: #333537;
+  --panel: #3c3f41;
+  --canvas: #36383a;
+  --subtle: #494d4e;
+  --ink: #d8d8d2;
+  --text: #cbcdc6;
+  --muted: #afb4b1;
+  --line: #4e5152;
+  --border: #686c6e;
+  --action: #abbf95;
+  --secondary: #d4a675;
+  --ink-strong: var(--ink);
+  --theme-font: Consolas, "Liberation Mono", "Microsoft YaHei", monospace;
+  --theme-radius: 0px;
+  --chart-dash: 2 4;
+  --curve-lightness: 71%;
+  color-scheme: dark;
+  --card-gray: #41464b;
+  --card-blue: #71848f;
+  --card-purple: #948895;
+  --card-cyan: #79938f;
+  --card-green: #87947a;
+  --card-amber: #b99e78;
+  --card-rose: #b8897f;
+  --card-slate: #838895;
 }
-:root[data-theme="coral"] {
-  --page: #f5ece6;
-  --panel: #fffaf2;
-  --canvas: #fff5eb;
-  --subtle: #f8e9de;
-  --ink: #513b40;
-  --ink-strong: #301d23;
-  --text: #74575d;
-  --muted: #84686b;
-  --line: #e5d2c7;
-  --border: #c4a69e;
-  --action: #935952;
-  --secondary: #a5723c;
-  --card-gray: #a19894;
-  --card-blue: #8899ae;
-  --card-purple: #b09bad;
-  --card-cyan: #87a7a3;
-  --card-green: #a3af91;
-  --card-amber: #cab17f;
-  --card-rose: #c78d88;
-  --card-slate: #8f94ad;
+:root[data-theme="coral"], .theme-choice[data-palette="coral"] {
+  --page: #ede7da;
+  --panel: #fffdf7;
+  --canvas: #f8f4eb;
+  --subtle: #f0e8d8;
+  --ink: #312927;
+  --text: #4e423e;
+  --muted: #735f57;
+  --line: #dcd2bf;
+  --border: #ac998c;
+  --action: #853c47;
+  --secondary: #805f32;
+  --ink-strong: var(--ink);
+  --theme-font: Georgia, "Times New Roman", SimSun, serif;
+  --theme-radius: 2px;
+  --chart-dash: none;
+  --curve-lightness: 40%;
+  color-scheme: light;
+  --card-gray: #8e8586;
+  --card-blue: #87939e;
+  --card-purple: #a291ac;
+  --card-cyan: #86a19e;
+  --card-green: #9ca18b;
+  --card-amber: #c3a16c;
+  --card-rose: #b7808e;
+  --card-slate: #978f9d;
 }
-:root[data-theme="oasis"] {
-  --page: #edf0e5;
-  --panel: #fcfbed;
-  --canvas: #f6f7e9;
-  --subtle: #eef0dd;
-  --ink: #394b35;
-  --ink-strong: #1e2c1a;
-  --text: #566b4d;
-  --muted: #697660;
-  --line: #d6dbc1;
-  --border: #acb78f;
-  --action: #5d724e;
-  --secondary: #917445;
-  --card-gray: #90998c;
-  --card-blue: #809c9d;
-  --card-purple: #a49aab;
-  --card-cyan: #7f9f91;
-  --card-green: #8da17e;
-  --card-amber: #baa574;
-  --card-rose: #b5988b;
-  --card-slate: #909db2;
+:root[data-theme="oasis"], .theme-choice[data-palette="oasis"] {
+  --page: #e3ebe6;
+  --panel: #fcfefc;
+  --canvas: #f1f7f3;
+  --subtle: #e6f0e9;
+  --ink: #203930;
+  --text: #344c41;
+  --muted: #536a5e;
+  --line: #ccdcd1;
+  --border: #91aa9c;
+  --action: #1b6952;
+  --secondary: #88603d;
+  --ink-strong: var(--ink);
+  --theme-font: "Segoe UI", "Microsoft YaHei", sans-serif;
+  --theme-radius: 8px;
+  --chart-dash: 1 4;
+  --curve-lightness: 40%;
+  color-scheme: light;
+  --card-gray: #87928e;
+  --card-blue: #79a0ac;
+  --card-purple: #9c91a5;
+  --card-cyan: #67a095;
+  --card-green: #93a77c;
+  --card-amber: #bea378;
+  --card-rose: #b99585;
+  --card-slate: #8997a5;
 }
-:root[data-theme="dusk"] {
-  --page: #eae8ee;
-  --panel: #faf7f3;
-  --canvas: #f3f0f6;
-  --subtle: #eeebf2;
-  --ink: #414058;
-  --ink-strong: #252438;
-  --text: #656079;
-  --muted: #767087;
-  --line: #d9d3e0;
-  --border: #b4a9bf;
-  --action: #6e6282;
-  --secondary: #93704e;
-  --card-gray: #9794a1;
-  --card-blue: #8f9fbd;
-  --card-purple: #a293b5;
-  --card-cyan: #8babb2;
-  --card-green: #a0af9c;
-  --card-amber: #c2aa84;
-  --card-rose: #bc9aa7;
-  --card-slate: #9093af;
+:root[data-theme="dusk"], .theme-choice[data-palette="dusk"] {
+  --page: #2d333a;
+  --panel: #383f47;
+  --canvas: #30373f;
+  --subtle: #464e59;
+  --ink: #d9dfe4;
+  --text: #cad2d9;
+  --muted: #b0bbc5;
+  --line: #49525d;
+  --border: #617080;
+  --action: #8cbbd8;
+  --secondary: #bba6c7;
+  --ink-strong: var(--ink);
+  --theme-font: "Segoe UI", "Microsoft YaHei", sans-serif;
+  --theme-radius: 4px;
+  --chart-dash: 3 4;
+  --curve-lightness: 73%;
+  color-scheme: dark;
+  --card-gray: #89899a;
+  --card-blue: #8494bd;
+  --card-purple: #a095b5;
+  --card-cyan: #83aaa9;
+  --card-green: #a4ad95;
+  --card-amber: #c0ac85;
+  --card-rose: #b99ba7;
+  --card-slate: #8287ab;
 }
 
 :root {
@@ -187,12 +208,4 @@
   --node-summary-ink: #4d737e;
   --node-footer-ink: #537a82;
   --node-date-ink: #3b5058;
-}
-
-/* Keep the default background surfaces under every accent palette. */
-:root[data-theme] {
-  --page: #ffffff;
-  --panel: #ffffff;
-  --canvas: #fbfdfe;
-  --subtle: #f0f7fa;
 }

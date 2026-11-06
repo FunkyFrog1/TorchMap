@@ -204,7 +204,8 @@ export class DirectoryStore {
     return items;
   }
   async list() {
-    return [...(await this.catalog()).values()].map(({ p }) => ({
+    return [...(await this.catalog()).values()].map(({ p, dir }) => ({
+      directory: path.basename(dir) + "/",
       id: p.id,
       title: p.title,
     }));
