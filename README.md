@@ -4,9 +4,9 @@
 
 **TorchMap is a model version map your whole team maintains together.** When someone tries a new idea, they branch a card from the model they started with and record what changed. Each card owns its training runs, configurations, checkpoints, and the validation and test results that come back later. When someone asks “Which model did that result come from?”, you can both point to the same card.
 
-![A 12-version research map with the three branches feeding the selected M3 model highlighted](docs/assets/torchmap-lineage.png)
+![Live team map showing 24 model cards and the ancestry of Model 15](docs/assets/torchmap-lineage.png)
 
-Follow the [fictional project](examples/branching.en.json) above. Three experiments branch from M1 to try Mixup, label smoothing and a narrower network. Two branches fine-tune their own checkpoints. M3 then combines ideas from all three. Select M3 to trace those decisions. The Frozen-BN experiment stays visible off the highlighted path, so the next teammate can see what else was tried. Solid lines trace design changes and merges; dashed lines trace fine-tuning from existing weights.
+This is a snapshot of a working research project: **24 model versions, 23 relationships and two contributors across seven experiment dates**. Follow the highlighted path to Model 15. The dashed link from Model 12 marks the checkpoint continuation; the other branches stay on the same map, including two training runs still in progress at capture time. Names and change notes have been anonymized for publication.
 
 ### What can you find on a model card? 🔬
 
@@ -17,7 +17,11 @@ Follow the [fictional project](examples/branching.en.json) above. Three experime
 | How does this compare with our other branch? | Double-click the card to compare training curves with its direct parents. Tick another model on the map to include it. |
 | We tested the 40K checkpoint yesterday. Where does that score go? | Its validation and test results link back to the producing run and plot at **40K**. The dataset, evaluation protocol and weight variant travel with the result. |
 
-![Loss curves for a parent and a resumed branch, aligned by training step](docs/assets/torchmap-curves.png)
+The two views below follow the same pair of cards. Model 15 joins the training history partway through Model 12’s run. Switch to Test to see how their saved checkpoints compare. The trajectories are real; exact readings and dataset labels are hidden.
+
+![Live training loss and learning-rate history for Model 12 and Model 15](docs/assets/torchmap-curves.png)
+
+![Live checkpoint test scores for the same pair of models](docs/assets/torchmap-test.png)
 
 ### Let Codex keep the map up to date 🛠️
 
