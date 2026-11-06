@@ -14,7 +14,7 @@ Create a card when you change the model or training recipe. Link it to its paren
 
 Double-click a card to open its training curves. Its direct parent is included in the comparison by default. Check other cards on the map to compare additional branches. In the example below, one run continues from a parent checkpoint and follows a different learning-rate schedule.
 
-![Training loss and learning-rate curves for a parent and its continuation](docs/assets/torchmap-curves.png)
+![Training workspace with pinned loss and learning rate, grouped metrics, and model change notes](docs/assets/torchmap-curves.png)
 
 Validation and test results attach to the checkpoint that produced them. If you evaluate a 40K checkpoint after training has finished, its score appears at step 40,000. Each result keeps its dataset, evaluation protocol and weight variant so teammates can interpret the comparison.
 
