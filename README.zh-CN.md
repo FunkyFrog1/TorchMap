@@ -22,8 +22,6 @@ TorchMap 让团队共同维护一张模型版本路线图。每张卡代表一�
 
 验证和测试结果挂在实际参与评测的 checkpoint 上。即使训练结束后才补测 40K 权重，得分也会出现在横轴的第 40,000 步。结果同时记录数据集、评测口径和所用权重版本，方便团队核对两条曲线能否直接比较。
 
-![相同两个模型版本在各个 checkpoint 上的测试表现](docs/assets/torchmap-test.png)
-
 ## 用 Codex 接入实验
 
 项目内置了 [Codex Skill](.agents/skills/torchmap/SKILL.md)。在 Codex 中打开仓库，提供共享项目目录和实验产物路径，就可以直接用自然语言登记模型、关联训练和补充评测。例如：

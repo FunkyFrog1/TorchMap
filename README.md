@@ -22,8 +22,6 @@ Double-click a card to open its training curves. Its direct parent is included i
 
 Validation and test results attach to the checkpoint that produced them. If you evaluate a 40K checkpoint after training has finished, its score appears at step 40,000. Each result keeps its dataset, evaluation protocol and weight variant so teammates can interpret the comparison.
 
-![Checkpoint test scores for the same two model versions](docs/assets/torchmap-test.png)
-
 ## Add an experiment with Codex
 
 TorchMap includes a [Codex skill](.agents/skills/torchmap/SKILL.md) for registering versions and connecting existing results. Open this checkout in Codex, give it the shared project directory and the paths to your outputs, and describe the experiment in plain language. For example:
