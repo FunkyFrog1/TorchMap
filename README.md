@@ -2,19 +2,30 @@
 
 [简体中文](README.zh-CN.md)
 
-Which model gave you that curve? And which checkpoint did you actually evaluate? TorchMap puts **model versions on a map**, with training runs and checkpoint evaluations attached to each version. Give `final_final_v3` a well-earned retirement.
+**TorchMap is a model version map your whole team maintains together.** When someone tries a new idea, they branch a card from the model they started with and record what changed. Each card owns its training runs, configurations, checkpoints, and the validation and test results that come back later. When someone asks “Which model did that result come from?”, you can both point to the same card.
 
-![TorchMap model lineage with a baseline and a checkpoint continuation](docs/assets/torchmap-lineage.png)
+![A 12-version research map with the three branches feeding the selected M3 model highlighted](docs/assets/torchmap-lineage.png)
 
-### Follow a branch 🧬
+Follow the [fictional project](examples/branching.en.json) above. Three experiments branch from M1 to try Mixup, label smoothing and a narrower network. Two branches fine-tune their own checkpoints. M3 then combines ideas from all three. Select M3 to trace those decisions. The Frozen-BN experiment stays visible off the highlighted path, so the next teammate can see what else was tried. Solid lines trace design changes and merges; dashed lines trace fine-tuning from existing weights.
 
-Click a model to highlight its ancestors. Double-click to open its training curves. TorchMap compares the direct parent by default; tick other cards on the map to build your own comparison. Click the floating minimap to get back.
+### What can you find on a model card? 🔬
 
-### Read the curves 📈
+| The lab meeting question | Where to look |
+| --- | --- |
+| What changed since the baseline? | Select the card for its author, short change list and detailed notes. Arrange the map by date or generation to trace its ancestry. |
+| Where does a second seed go? | Add a training run under the same version. Each run keeps its configuration, steps, curves and checkpoints. |
+| How does this compare with our other branch? | Double-click the card to compare training curves with its direct parents. Tick another model on the map to include it. |
+| We tested the 40K checkpoint yesterday. Where does that score go? | Its validation and test results link back to the producing run and plot at **40K**. The dataset, evaluation protocol and weight variant travel with the result. |
 
-Training, validation and test metrics have their own views. Expand a group and pin the metrics you care about. Pins follow you across models in the same project. Evaluation points sit at the training step of the checkpoint that produced them, so “evaluation batch 32” never gets mistaken for “training step 32.”
+![Loss curves for a parent and a resumed branch, aligned by training step](docs/assets/torchmap-curves.png)
 
-![Training loss for the fictional baseline and continuation on the same axes](docs/assets/torchmap-curves.png)
+### Let Codex keep the map up to date 🛠️
+
+**TorchMap ships with a [Skill that Codex discovers in this checkout](.agents/skills/torchmap/SKILL.md).** Open the repo in Codex, point it to the shared project and your experiment outputs, and describe the change in plain language. You can skip learning the field names and filling out JSON by hand. Try:
+
+> Use TorchMap to register my label-smoothing branch under M1. It trained from scratch. Attach the config and loss from this run. Validation and test have finished for the 40K checkpoint; link both existing results to that checkpoint and check that both appear in the viewer.
+
+For the first integration, provide an accessible project directory and actual experiment outputs. Teammates working in other checkouts can install the [portable Skill](skills/torchmap/) and contribute to the same map.
 
 ### Try it locally 🚀
 
