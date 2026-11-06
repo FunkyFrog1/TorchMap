@@ -235,6 +235,8 @@ function details() {
   if (!node) return;
   if (document.body.classList.contains("console-mode")) {
     renderVersionBrief(target, node);
+    if (!document.body.classList.contains("directory-mode"))
+      target.append(button(t("编辑版本"), () => editor.open(project, node), "primary"));
     return;
   }
   const top = element("div", undefined, "inspector-top");

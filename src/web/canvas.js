@@ -515,7 +515,7 @@ export class MapCanvas {
     handle.addEventListener("pointercancel", clear);
     handle.addEventListener("lostpointercapture", clear);
     handle.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") clear();
+      if (event.key === "Escape" && gesture) { event.stopPropagation(); clear(); }
     });
     handle.addEventListener("click", (event) => {
       event.stopPropagation();

@@ -399,6 +399,7 @@ body[data-page="roadmap"] .map-panel {height:calc(100dvh - 40px)}
 
 body[data-page="roadmap"] .map-panel{height:calc(100dvh - 78px);margin-top:20px}
 .monitor-heading .monitor-pickers {display:flex;margin:0;gap:12px}.monitor-heading .monitor-pickers label{min-width:0}
+.console-mode:not(.directory-mode) .map-toolbar #project-menu > summary {display:list-item;cursor:pointer}
 .map-toolbar #project-menu {position:relative;margin:0}.map-toolbar #project-menu[open]{position:absolute;right:20px;top:18px;padding:10px;background:white;z-index:5;border:1px solid var(--border)}.map-panel{position:relative}
 .map-toolbar #board-order{font:12px "Microsoft YaHei",sans-serif;border:1px solid var(--border);color:var(--ink);background:white;padding:6px;border-radius:2px}
 .console-mode.directory-mode .map-toolbar #project-menu{display:block}
