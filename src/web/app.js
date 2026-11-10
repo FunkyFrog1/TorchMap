@@ -181,7 +181,7 @@ function render(options = {}) {
     (option) => option.value === projectId,
   );
   if (current) current.textContent = project.title;
-  document.title = project.title + " · TensorMap";
+  document.title = project.title + " · TorchMap";
   $("project-counts").textContent = t("项目计数", {
     nodes: project.nodes.length,
     edges: project.edges.length,
