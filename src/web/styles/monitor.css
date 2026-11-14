@@ -548,7 +548,23 @@ body.console-mode{--page:#f2f2f0;--panel:#fff;--canvas:#fafaf9;--ink:#282a2d;--i
 
 /* Wider desktop workspace, with room inside the navigation rail. */
 @media(min-width:1001px){body.console-mode{max-width:none;width:100%;--outer-x:clamp(10px,0.8vw,20px);padding-inline:var(--outer-x);grid-template-columns:204px minmax(0,1fr)}.console-mode .project-sidebar{padding-inline:14px}.console-mode .project-sidebar .brand{max-width:100%}}
-@media(max-width:1000px){.console-mode .project-sidebar{padding-inline:10px}}
+@media (max-width: 1000px) {
+  .console-mode .project-sidebar {
+    align-self: stretch;
+    padding-inline: 10px;
+  }
+  .console-mode .monitor-nav {
+    flex-wrap: wrap;
+  }
+  .console-mode .monitor-nav button {
+    display: inline-flex;
+    gap: 8px;
+  }
+  .console-mode .monitor-nav button svg {
+    flex: none;
+    margin: 0;
+  }
+}
 
 
 /* The map is the only visible pane in this view. */
