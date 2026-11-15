@@ -59,10 +59,14 @@ test("one dated version, two independent runs, rollback and late evaluation", as
     status: "succeeded",
     progress: { done: 7, total: 7 },
   });
-  await put(ed, "summary.json", { metrics: { accuracy: 0.8 } });
   const store = new DirectoryStore(tmp);
   assert.equal((await store.list())[0].id, "lab");
-  const db = await store.ledger("lab"),
+  const syncing = (await store.ledger("lab")).snapshot();
+  const pendingSummary = syncing.runs.find((r) => r.id === "later");
+  assert.equal(pendingSummary.summary, null);
+  assert.deepEqual(pendingSummary.finalMetrics, []);
+  await put(ed, "summary.json", { metrics: { accuracy: 0.8 } });
+  const db = await new DirectoryStore(tmp).ledger("lab"),
     s = db.snapshot();
   assert.equal(db.map.nodes.length, 1);
   assert.equal(s.runs.filter((r) => r.kind === "train").length, 2);

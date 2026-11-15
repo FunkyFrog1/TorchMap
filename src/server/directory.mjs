@@ -127,7 +127,7 @@ async function loadDirectory(dir, project) {
           if (weights.get(e.checkpoint_id)?.runId !== r.id)
             throw Error("Evaluation checkpoint mismatch: " + e.id);
           const done = e.status === "succeeded",
-            s = done ? await json(path.join(ed, "summary.json")) : null;
+            s = done ? await manifest(ed, "summary.json") : null;
           const item = {
             id: e.id,
             versionId: v.id,
