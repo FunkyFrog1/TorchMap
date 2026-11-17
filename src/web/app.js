@@ -485,7 +485,7 @@ function projectBusy(busy) {
 }
 // Freeze edits until the final queued save completes, so navigation cannot
 // discard a newer drag or rename submitted while a slow save is in flight.
-async function leaveProject(destination) {
+async function leaveProject(destination, view) {
   if (leavingProject) return;
   projectBusy(true);
   try {
@@ -495,8 +495,10 @@ async function leaveProject(destination) {
       return;
     }
     const id = await destination();
-    location.href =
-      id === "default" ? "/" : "?project=" + encodeURIComponent(id);
+    const target = new URL("/", location.href);
+    if (id !== "default") target.searchParams.set("project", id);
+    if (view) target.searchParams.set("view", view);
+    location.href = target.href;
   } catch (error) {
     projectBusy(false);
     $("project-picker").value = projectId;
@@ -505,7 +507,7 @@ async function leaveProject(destination) {
 }
 $("project-picker").addEventListener("change", (event) => {
   const id = event.target.value;
-  leaveProject(async () => id);
+  if (id && id !== projectId) leaveProject(async () => id, "roadmap");
 });
 $("archive-project").addEventListener("click", () =>
   ask(t("归档项目"), t("归档说明"), () =>

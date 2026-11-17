@@ -363,6 +363,7 @@ test("switch waits for the last drag save and freezes further edits while waitin
   await page.keyboard.press("Control+z");
   release();
   await expect.poll(() => new URL(page.url()).searchParams.get("project")).toBe(created.id);
+  await expect(page.locator("body")).toHaveAttribute("data-page", "roadmap");
   await expect(page.locator(".experiment-node")).toHaveCount(0);
   const original = await (await request.get(url + "api/project")).json();
   expect(original.nodes.find((n) => n.id === "v3").row).toBe(2);
@@ -509,13 +510,13 @@ test("projects remain independent across create, switch, rename and archive", as
   await openMenu(page, "project-menu");
   await page.locator("#project-picker").selectOption("default");
   await page.waitForURL(u => u.searchParams.get("project") === null);
-  await expect(page.locator("body")).toHaveAttribute("data-page", "training");
+  await expect(page.locator("body")).toHaveAttribute("data-page", "roadmap");
   await expect(page.locator(".experiment-node")).toHaveCount(8);
   await expect(page.locator("#undo")).toBeDisabled();
   await openMenu(page, "project-menu");
   await page.locator("#project-picker").selectOption(id);
   await page.waitForURL(u => u.searchParams.get("project") === id);
-  await expect(page.locator("body")).toHaveAttribute("data-page", "training");
+  await expect(page.locator("body")).toHaveAttribute("data-page", "roadmap");
   await expect(page.locator("#project-picker option:checked")).toHaveText(
     "Renamed project",
   );
