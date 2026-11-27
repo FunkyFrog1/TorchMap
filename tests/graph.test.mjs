@@ -138,6 +138,35 @@ test("new branches use nearby free lanes without moving saved cards", () => {
   assert.equal(rows.b, 1);
 });
 
+test("generation layout groups each lineage and aligns single downstream continuations", () => {
+  const p = {
+    nodes: ["a", "b", "b-next", "a-alt", "a-main", "a-next", "a-other"].map((id) => ({
+      id, title: id, date: "2026-01-01",
+    })),
+    edges: [
+      { from: "a", to: "a-alt", kind: "branch" },
+      { from: "a", to: "a-main", kind: "branch" },
+      { from: "a-alt", to: "a-other", kind: "branch" },
+      { from: "a-main", to: "a-next", kind: "finetune" },
+      { from: "b", to: "b-next", kind: "branch" },
+    ],
+  };
+  const layout = layoutProject(p, "generation");
+  const byId = new Map(layout.nodes.map((n) => [n.id, n]));
+  for (const [parent, child] of [["a-main", "a-next"], ["a-alt", "a-other"], ["b", "b-next"]]) {
+    assert.equal(byId.get(parent).y, byId.get(child).y);
+    assert.ok(byId.get(parent).x < byId.get(child).x);
+  }
+  assert.ok(byId.get("a-main").y < byId.get("b-next").y);
+  assert.equal(new Set(layout.nodes.map((n) => `${n.x}:${n.y}`)).size, p.nodes.length);
+
+  const saved = layoutProject(p, "generation", { "a-main": 4 });
+  const parent = saved.nodes.find((n) => n.id === "a-main");
+  const child = saved.nodes.find((n) => n.id === "a-next");
+  assert.equal(parent.row, 4);
+  assert.equal(parent.y, child.y);
+});
+
 test("fine-tuning inherits its parent lane when another input is a merge", () => {
   const layout = layoutProject(
     normalizeProject({

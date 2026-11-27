@@ -14,6 +14,8 @@ import {
   saveProject,
   downloadProject,
   projectId,
+  restoreBoardLayout,
+  saveBoardLayout,
 } from "./storage.js";
 
 const $ = (id) => document.getElementById(id);
@@ -52,6 +54,7 @@ const canvas = new MapCanvas(select, (id, row) => {
     }
     rows[id]=row;
     canvas.prefs.generationRows=rows;localStorage.setItem(canvas.prefKey,JSON.stringify(canvas.prefs));
+    persistBoard();
     selected=id;render();return;
   }
   const next = structuredClone(project);
@@ -68,13 +71,21 @@ const canvas = new MapCanvas(select, (id, row) => {
   moving.row = row;
   if(document.body.classList.contains("directory-mode")){
     canvas.prefs.rows=Object.fromEntries(next.nodes.map(n=>[n.id,n.row]));localStorage.setItem(canvas.prefKey,JSON.stringify(canvas.prefs));
+    persistBoard();
     project=next;selected=id;render();return;
   }
   commit(next, id);
 });
 canvas.onTraining=()=>monitor?.changePage("training");
 canvas.onReturn=()=>monitor?.toggleMap();
-canvas.onLayoutChange=()=>render({fit:true, animateLayout:true});
+function persistBoard() {
+  if (document.body.classList.contains("directory-mode"))
+    saveBoardLayout(canvas.prefKey, canvas.prefs);
+}
+canvas.onLayoutChange=()=>{
+  persistBoard();
+  render({fit:true, animateLayout:true});
+};
 canvas.onCreate = (source, draft) => {
   if (leavingProject) return;
   editor.open(project, null, {
@@ -209,15 +220,23 @@ function section(title, collapsed = false) {
   return block;
 }
 let markdown;
-function renderVersionBrief(target, node) {
+function renderVersionBrief(target, node, changesOpen) {
   target.append(element("h1", node.title));
+  const metadata = element("div", undefined, "version-submission");
+  metadata.append(
+    element("span", `${tr("提交日期", "Submitted on")} ${node.date}`),
+    element("span", `${tr("提交人", "Submitted by")} ${node.creator || "—"}`),
+  );
+  target.append(metadata);
   const brief = section(t("主要改动"));
   if (node.changes.length) {
     const list = element("ul");
     for (const change of node.changes) list.append(element("li", change));
     brief.append(list);
   } else brief.append(element("p", node.summary || "—"));
-  const detail = section(tr("详细改动","Detailed changes"));
+  const detail = section(tr("详细改动", "Detailed changes"), true);
+  detail.dataset.changeDetails = node.id;
+  detail.open = changesOpen;
   if (node.changeDetails) {
     const article = element("article", undefined, "change-markdown");
     detail.append(article);
@@ -229,12 +248,14 @@ function renderVersionBrief(target, node) {
 function details() {
   monitor?.draw();
   const target = $("inspector");
+  const previousChanges = target.querySelector("[data-change-details]");
+  const changesOpen = previousChanges?.dataset.changeDetails === selected && previousChanges.open;
   target.replaceChildren();
   const node = project.nodes.find((n) => n.id === selected);
   target.hidden=!node;
   if (!node) return;
   if (document.body.classList.contains("console-mode")) {
-    renderVersionBrief(target, node);
+    renderVersionBrief(target, node, changesOpen);
     if (!document.body.classList.contains("directory-mode"))
       target.append(button(t("编辑版本"), () => editor.open(project, node), "primary"));
     return;
@@ -529,7 +550,13 @@ try {
     Boolean(result.directoryMode),
   );
   project = result.project;
-  if(result.directoryMode)for(const n of project.nodes){const row=canvas.prefs.rows?.[n.id];if(Number.isInteger(row))n.row=row;}
+  if (result.directoryMode) {
+    await restoreBoardLayout(canvas.prefKey, canvas.prefs);
+    for (const node of project.nodes) {
+      const row = canvas.prefs.rows?.[node.id];
+      if (Number.isInteger(row)) node.row = row;
+    }
+  }
   const hash = decodeURIComponent(location.hash.slice(1));
   selected = project.nodes.some((n) => n.id === hash) ? hash : null;
   render({ fit: true });

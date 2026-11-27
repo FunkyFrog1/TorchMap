@@ -180,6 +180,16 @@ select:focus-visible {
   color: var(--detail-heading);
   overflow-wrap: anywhere;
 }
+.version-submission {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: -5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
 .eyebrow {
   font:
     10px Consolas,

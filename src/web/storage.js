@@ -12,6 +12,43 @@ const DRAFT_KEY =
 let mapRevision;
 let queue = Promise.resolve(),
   revision = 0;
+const boardEndpoint = "/api/board-layout?project=" + encodeURIComponent(projectId);
+let boardWrites = Promise.resolve();
+
+export function saveBoardLayout(key, prefs) {
+  const body = JSON.stringify({
+    mode: prefs.mode ?? "date", rows: prefs.rows ?? {},
+    generationRows: prefs.generationRows ?? {},
+  });
+  const pending = key + ":pending-layout";
+  try { localStorage.setItem(pending, body); } catch {}
+  boardWrites = boardWrites.then(async () => {
+    const response = await fetch(boardEndpoint, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body, keepalive: true, signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) return;
+    if (localStorage.getItem(pending) === body) localStorage.removeItem(pending);
+  }).catch(() => {});
+}
+
+export async function restoreBoardLayout(key, prefs) {
+  try {
+    const response = await fetch(boardEndpoint, { signal: AbortSignal.timeout(1500) });
+    if (!response.ok) return;
+    const saved = await response.json();
+    const pending = localStorage.getItem(key + ":pending-layout");
+    if (pending) {
+      Object.assign(prefs, JSON.parse(pending));
+      saveBoardLayout(key, prefs);
+    } else if (saved) {
+      Object.assign(prefs, saved);
+      localStorage.setItem(key, JSON.stringify(prefs));
+    } else if (prefs.rows || prefs.generationRows || prefs.mode) {
+      saveBoardLayout(key, prefs);
+    }
+  } catch {}
+}
 
 export async function loadProject() {
   const response = await fetch(endpoint, { cache: "no-store" });

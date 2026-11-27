@@ -1,3 +1,4 @@
+import { formatMetricTime } from "./metric-time.js";
 const NS = "http://www.w3.org/2000/svg";
 export function experimentColor(id) {
   let hash = 2166136261;
@@ -26,6 +27,7 @@ function legendValue([step, value], metricName, translate) {
   const measured = document.createElement("span");
   measured.textContent = score;
   const iteration = document.createElement("span");
+  iteration.className = "legend-step";
   iteration.textContent = step.toLocaleString("en");
   cell.append(measured, iteration);
   cell.title = value + (percent ? "%" : "") + " · " + translate("步数", "Step") + " " + step;
@@ -70,11 +72,26 @@ export function curve(series, metricName, empty, key, translate, actions) {
     box.replaceWith(curve(series,metricName,empty,key,translate,actions));
   }
   actions.replaceChildren();
-  for(const [glyph,label,callback] of [
-    ["↺",translate("复位","Reset zoom"),()=>redraw(null)]
-  ]){
-    const button=document.createElement("button");button.type="button";button.textContent=glyph;button.title=label;button.setAttribute("aria-label",label);button.onclick=callback;actions.append(button);
-  }
+  const reset = document.createElement("button");
+  reset.type = "button";
+  reset.className = "chart-reset";
+  reset.title = translate("复位", "Reset zoom");
+  reset.setAttribute("aria-label", reset.title);
+  const icon = shape("svg", {
+    viewBox: "0 0 20 20",
+    width: 15,
+    height: 15,
+    "aria-hidden": "true",
+    fill: "none",
+    stroke: "currentColor",
+    "stroke-width": 1.5,
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round",
+  });
+  icon.append(shape("path", { d: "M7 3H3v4m10-4h4v4M3 13v4h4m10-4v4h-4" }));
+  reset.append(icon);
+  reset.onclick = () => redraw(null);
+  actions.append(reset);
   const clipId="metric-clip-"+(++chartNumber);
   const clip=shape("clipPath",{id:clipId});clip.append(shape("rect",{x:70,y:20,width:506,height:226}));plot.append(clip);
   const drawing=shape("g",{"clip-path":"url(#"+clipId+")"});
@@ -106,24 +123,26 @@ export function curve(series, metricName, empty, key, translate, actions) {
 
   const legend = document.createElement("div");
   legend.className = "monitor-legend";
-  series.forEach(({ label, points, dashed, color: c }) => {
+  series.forEach(({ label, points, dashed, color: c, updatedAt }) => {
     const ordered = [...points].sort((a, b) => a[0] - b[0]);
     drawing.append(
       shape("polyline", {
         points: ordered.map(([x, y]) => px(x) + "," + py(y)).join(" "),
         fill: "none",
         stroke: c,
-        "stroke-width": 2.3,
+        "stroke-width": 1.4,
         "stroke-dasharray": dashed ? "6 4" : "none",
       }),
     );
     if (ordered.length <= 50)
       for (const [x, y] of ordered) {
-        const dot = shape("circle", { cx: px(x), cy: py(y), r: 3.3, fill: c });
+        const dot = shape("circle", { cx: px(x), cy: py(y), r: 2.5, fill: c });
         drawing.append(dot);
       }
     const row = document.createElement("div");
     row.className = "legend-series";
+    const stamp = formatMetricTime(updatedAt, document.documentElement.lang);
+    row.title = stamp ? translate("指标更新", "Data updated") + " · " + stamp : "";
     const mark = document.createElement("i");
     mark.style.backgroundColor = c;
     if (dashed) mark.style.borderTopStyle = "dashed";
@@ -133,6 +152,12 @@ export function curve(series, metricName, empty, key, translate, actions) {
     const stats = document.createElement("div");
     stats.className = "legend-stats";
     stats.append(legendValue(ordered.at(-1), metricName, translate));
+    const time = document.createElement("time");
+    time.className = "legend-updated";
+    time.textContent = stamp ?? "";
+    time.title = row.title;
+    if (stamp) time.dateTime = new Date(updatedAt).toISOString();
+    stats.firstElementChild.append(time);
     row.append(mark, name, stats);
     legend.append(row);
   });
@@ -159,16 +184,42 @@ export function curve(series, metricName, empty, key, translate, actions) {
     tip.style.visibility="visible";
   }
   plot.onpointerleave=hideTip;
-  let start=null;
+  let drag=null;
   const selection=shape("rect",{fill:"#176b8922",stroke:"#49728f","pointer-events":"none"});
-  function point(e){const p=new DOMPoint(e.clientX,e.clientY).matrixTransform(plot.getScreenCTM().inverse());return [Math.max(70,Math.min(576,p.x)),Math.max(20,Math.min(246,p.y))];}
-  plot.onpointerdown=e=>{if(e.button!==0||!e.isPrimary)return;e.preventDefault();hideTip();start=point(e);plot.setPointerCapture(e.pointerId);plot.append(selection);};
-  plot.onpointermove=e=>{if(!start){hover(e);return;}const [x,y]=point(e);for(const [k,v] of Object.entries({x:Math.min(start[0],x),y:Math.min(start[1],y),width:Math.abs(x-start[0]),height:Math.abs(y-start[1])}))selection.setAttribute(k,v);};
-  plot.onpointerup=e=>{if(!start)return;const [x,y]=point(e),[a,b]=start;start=null;selection.remove();
+  const point=e=>new DOMPoint(e.clientX,e.clientY).matrixTransform(plot.getScreenCTM().inverse());
+  const bound=({x,y})=>[Math.max(70,Math.min(576,x)),Math.max(20,Math.min(246,y))];
+  plot.onpointerdown=e=>{
+    if(e.button!==0||!e.isPrimary)return;
+    const {x,y}=point(e);
+    if(x<70||x>576||y<20||y>246)return;
+    e.preventDefault();
+    hideTip();
+    drag={id:e.pointerId,x,y};
+    plot.setPointerCapture(e.pointerId);
+    selection.setAttribute("width",0);
+    selection.setAttribute("height",0);
+    plot.append(selection);
+  };
+  plot.onpointermove=e=>{
+    if(!drag){hover(e);return;}
+    if(e.pointerId!==drag.id)return;
+    const [x,y]=bound(point(e));
+    for(const [k,v] of Object.entries({x:Math.min(drag.x,x),y:Math.min(drag.y,y),width:Math.abs(x-drag.x),height:Math.abs(y-drag.y)}))
+      selection.setAttribute(k,v);
+  };
+  function finishDrag(){
+    drag=null;
+    selection.remove();
+  }
+  plot.onpointerup=e=>{
+    if(e.pointerId!==drag?.id)return;
+    const {x:a,y:b}=drag, [x,y]=bound(point(e));
+    finishDrag();
     if(Math.abs(x-a)<5||Math.abs(y-b)<5)return;
     const dataX=v=>x0+(v-70)/506*(x1-x0),dataY=v=>y1-(v-20)/226*(y1-y0);
-    redraw([dataX(Math.min(x,a)),dataX(Math.max(x,a)),dataY(Math.max(y,b)),dataY(Math.min(y,b))]);};
-  plot.onlostpointercapture=plot.onpointercancel=()=>{start=null;selection.remove();};
+    redraw([dataX(Math.min(x,a)),dataX(Math.max(x,a)),dataY(Math.max(y,b)),dataY(Math.min(y,b))]);
+  };
+  plot.onlostpointercapture=plot.onpointercancel=e=>{if(e.pointerId===drag?.id)finishDrag();};
   plot.ondblclick=()=>redraw(null);
   const footer=document.createElement("div");footer.className="chart-footer";footer.append(legend);
   if (series.length > 3) {

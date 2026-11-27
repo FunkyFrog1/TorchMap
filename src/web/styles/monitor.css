@@ -499,7 +499,7 @@ body.console-mode {--report-font:Georgia,"Times New Roman","Songti SC",SimSun,se
 }
 .metric-card .legend-stat {
   display: grid;
-  grid-template-columns: 9ch 10ch;
+  grid-template-columns: 9ch 10ch 19ch;
   gap: 1ch;
   margin-inline-start: auto;
   color: #414748;
@@ -511,7 +511,7 @@ body.console-mode {--report-font:Georgia,"Times New Roman","Songti SC",SimSun,se
 }
 .metric-card .monitor-legend .legend-stat span { display: block; text-align: right; }
 @container (max-width: 390px) {
-  .metric-card .legend-stat { grid-template-columns: 9ch 8ch; gap: .4ch; }
+  .metric-card .legend-stat { grid-template-columns: 8ch 8ch 19ch; gap: .4ch; }
   .metric-card .legend-stats { padding-inline-start: 4px; }
 }
 .metric-card .monitor-chart text.plot-tooltip{fill:#395a69;font-size:12px;stroke:#fafcfd;stroke-width:3px;stroke-linejoin:round;paint-order:stroke fill}
@@ -699,7 +699,8 @@ html:not([data-theme="lagoon"]) body.console-mode { --action: inherit; --seconda
 .theme-choice:has(:checked) { border-color: var(--action); box-shadow: inset 0 -2px var(--action); }
 .theme-choice:focus-within:has(:focus-visible) { outline: 2px solid var(--action); outline-offset: 2px; }
 html:not([data-theme="lagoon"]) .console-mode .metric-tools button[aria-pressed=true] {
-  color: var(--action); background: color-mix(in srgb, var(--action) 9%, white);
+  color: var(--action); background: color-mix(in srgb, var(--action) 12%, var(--panel));
+  border-color: color-mix(in srgb, var(--action) 50%, var(--border)); box-shadow:none;
 }
 html:not([data-theme="lagoon"]) .console-mode .progress-track i { background-color: var(--action); }
 html:not([data-theme="lagoon"]) .console-mode .progress-line:first-child i { background-color: var(--secondary); }
@@ -832,4 +833,53 @@ html:is([data-theme="dune"],[data-theme="dusk"]) .console-mode .map-panel {
   & .experiment-node.is-muted :is(.node-title,.node-change,.node-creator) { color: #dce0e2; }
   & .wire.is-related { stroke: color-mix(in srgb,var(--accent) 65%,white); }
   & .wire.is-muted { stroke: var(--muted); opacity: .42; filter: none; }
+}
+
+
+.metric-card .legend-updated { display:block; text-align:right; color:var(--muted); font:inherit; white-space:nowrap; }
+
+.evaluation-progress { display:flex; align-items:center; flex-wrap:wrap; gap:10px; color:var(--muted); font-size:12px; margin-bottom:10px; font-variant-numeric:tabular-nums; }
+.evaluation-progress progress { width:90px; height:6px; accent-color:var(--action); }
+
+.sidebar-progress {
+  box-sizing:border-box;
+  width:100%;
+  border-top:1px solid var(--line, #dedfdf);
+  padding:12px 3px 14px;
+  margin:0 0 12px;
+  border-bottom:1px solid var(--line, #dedfdf);
+  color:var(--muted, #56636a);
+  font:12px/1.4 system-ui,sans-serif;
+}
+.sidebar-progress-title {
+  margin:0 0 9px;
+  color:var(--ink, #282a2d);
+  font-weight:600;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.sidebar-progress-items { display:grid; gap:7px; }
+.sidebar-progress-row { display:grid; grid-template-columns:auto 1fr; gap:3px 6px; align-items:center; }
+.sidebar-progress-value { justify-self:end; font-variant-numeric:tabular-nums; }
+.sidebar-progress-steps { grid-column:1/-1; text-align:right; font-variant-numeric:tabular-nums; font-size:11px; overflow-wrap:anywhere; }
+.sidebar-progress-track {
+  grid-column:1/-1;
+  height:4px;
+  overflow:hidden;
+  border-radius:2px;
+  background:color-mix(in srgb,var(--muted, #56636a) 21%,transparent);
+}
+.sidebar-progress-fill { display:block; width:0; height:100%; border-radius:inherit; background:var(--action, #49728f); }
+@media(max-width:1000px) {
+  .sidebar-progress { margin-bottom:4px; }
+  .sidebar-progress-items { grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+}
+@media(max-width:520px) {
+  .sidebar-progress-items { grid-template-columns:1fr; gap:7px; }
+}
+
+/* Pinned icons share the active control palette, including dark surfaces. */
+html:not([data-theme="lagoon"]) .console-mode .metric-pin[aria-pressed=true] svg {
+  fill: color-mix(in srgb, var(--action) 25%, transparent);
 }

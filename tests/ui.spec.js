@@ -10,7 +10,9 @@ async function returnToMap(page) {
   await expect(page.locator("html")).not.toHaveClass(/map-morph/);
 }
 async function openSettings(page) {
-  if (await page.locator(".map-close").isVisible()) await page.locator(".map-close").click();
+  const monitor = page.locator("body.console-mode[data-page]");
+  await expect(monitor).toHaveCount(1);
+  if ((await monitor.getAttribute("data-page")) === "roadmap") await page.locator(".map-close").click();
   await page.locator('[data-view="settings"]').click();
 }
 async function chooseLanguage(page, value) {
@@ -1218,7 +1220,30 @@ test("branch inspector overlays parent curves and follows the exact evaluation c
   await page.locator(".metric-group summary").click();
   await expect(page.locator(".metric-card h2")).toHaveText("accuracy");
   await expect(page.locator(".metric-card polyline")).toHaveCount(2);
-  await expect(page.locator(".legend-stat span:last-child")).toHaveText(["40", "40"]);
+  await expect(page.locator(".legend-step")).toHaveText(["40", "40"]);
+  await expect(page.locator("time.legend-updated[datetime]")).toHaveCount(2);
+  const nextPoll = page.waitForResponse(response => {
+    const endpoint = new URL(response.url());
+    return endpoint.pathname === "/api/monitor" && endpoint.searchParams.has("since")
+      && endpoint.searchParams.get("refresh") === "1";
+  });
+  await page.locator(".monitor-refresh button").click();
+  expect(Object.keys(await (await nextPoll).json())).toEqual(["revision"]);
+  await expect(page.locator(".legend-step")).toHaveText(["40", "40"]);
+  await emit("run.created", {
+    runId: "late-validation", versionId: "branch", kind: "eval",
+    checkpointId: "ck-branch", dataset: "validation-extra", protocolId: "v1",
+  });
+  const delta = page.waitForResponse(response => {
+    const endpoint = new URL(response.url());
+    return endpoint.pathname === "/api/monitor" && endpoint.searchParams.has("since")
+      && endpoint.searchParams.get("refresh") === "1";
+  });
+  await page.locator(".monitor-refresh button").click();
+  const packet = await (await delta).json();
+  expect(packet.changes.runs.put.map(run => run.id)).toEqual(["late-validation"]);
+  await expect(page.locator(".evaluation-progress")).toContainText("Queued");
+  await expect(page.locator(".sidebar-progress-value").nth(1)).toHaveText("1 / 2");
   await expect(page.locator("#run-select")).toBeHidden();
   await emit("run.created", {
     runId: "second",

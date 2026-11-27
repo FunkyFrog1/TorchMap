@@ -50,6 +50,7 @@ async function scalars(dir, run) {
         step: p.step,
         name,
         value,
+        time: p.time ?? p.at ?? null,
       });
     }
   }
@@ -141,6 +142,7 @@ async function loadDirectory(dir, project) {
             attempt: e.attempt ?? 1,
             progress: e.progress,
             summary: s,
+            completedAt: e.completed_at ?? s?.completed_at ?? null,
           };
           insert(runs, e.id, item);
           const points = Object.entries(s?.metrics ?? {})
@@ -150,6 +152,7 @@ async function loadDirectory(dir, project) {
               value,
               step: item.step ?? 0,
               attempt: item.attempt,
+              time: s?.metric_times?.[name] ?? item.completedAt,
             }));
           item.finalMetrics = points;
           series.set(e.id, points);
@@ -210,16 +213,21 @@ export class DirectoryStore {
       title: p.title,
     }));
   }
-  async ledger(id) {
+  async ledger(id, { fresh = false } = {}) {
     const hit = this.cache.get(id);
-    if (hit && hit.until > Date.now()) return hit.value;
-    const items = await this.catalog(),
-      item = id === "default" ? items.values().next().value : items.get(id);
-    if (!item) throw Error("Unknown directory project: " + id);
-    const value = loadDirectory(item.dir, item.p);
-    this.cache.set(id, { until: Date.now() + 30000, value });
+    if (hit && (hit.loading || (!fresh && hit.until > Date.now()))) return hit.value;
+    const entry = { loading: true };
+    entry.value = this.catalog().then(items => {
+      const item = id === "default" ? items.values().next().value : items.get(id);
+      if (!item) throw Error("Unknown directory project: " + id);
+      return loadDirectory(item.dir, item.p);
+    });
+    this.cache.set(id, entry);
     try {
-      return await value;
+      const result = await entry.value;
+      entry.until = Date.now() + 30000;
+      entry.loading = false;
+      return result;
     } catch (e) {
       this.cache.delete(id);
       throw e;

@@ -1,5 +1,6 @@
 import { language, setLanguage, tr } from "./i18n.js";
 import { curve, experimentColor } from "./monitor-chart.js";
+import { metricTime, latestMetricTime } from "./metric-time.js";
 export { tr };
 export function el(tag, text, cls) {
   const n = document.createElement(tag);
@@ -24,10 +25,14 @@ const number = (v) =>
   Number.isFinite(v)
     ? v.toLocaleString("en", { maximumFractionDigits: 3 })
     : "—";
-export const states = (s) =>
+export const states = (s, phase) =>
   ({
     succeeded: tr("已完成", "Completed"),
-    running: tr("训练中", "Running"),
+    complete: tr("已完成", "Completed"),
+    running: {
+      validation: tr("验证中", "Validating"),
+      test: tr("测试中", "Testing"),
+    }[phase] ?? tr("训练中", "Running"),
     queued: tr("排队中", "Queued"),
     stopped: tr("已停止", "Stopped"),
     failed: tr("失败", "Failed"),
@@ -39,6 +44,119 @@ function inferred(dataset) {
   if (/val(idation)?\d*|held.?out|holdout|验证/i.test(dataset))
     return "validation";
   return "";
+}
+const evaluationSplit = (dataset, split) =>
+  split || inferred(dataset) || "validation";
+
+export function runProgress(run, evaluations, checkpoints) {
+  let training = null;
+  if (
+    Number.isFinite(run.step) &&
+    Number.isFinite(run.total) &&
+    run.total > 0
+  ) {
+    const value = Math.max(0, Math.min(run.step, run.total));
+    const percent = (100 * value) / run.total;
+    const text =
+      value === run.total
+        ? "100%"
+        : value > 0 && percent < 0.1
+          ? "<0.1%"
+          : Math.min(99.9, percent).toLocaleString(undefined, {
+              maximumFractionDigits: 1,
+            }) + "%";
+    const steps =
+      number(value) + " / " + number(run.total) + tr(" 步", " steps");
+    training = { value, total: run.total, text, steps };
+  }
+  const own = evaluations.filter(
+    (e) =>
+      e.kind === "eval" && checkpoints.get(e.checkpointId)?.runId === run.id,
+  );
+  const splits = new Map(
+    own.map((e) => [e.dataset, e.split]).filter(([, split]) => split),
+  );
+  const buckets = new Map([
+    ["validation", new Map()],
+    ["test", new Map()],
+  ]);
+  const key = (dataset, step) => JSON.stringify([dataset, step]);
+  for (const [dataset, steps] of Object.entries(run.evalPlan ?? {})) {
+    if (!Array.isArray(steps)) continue;
+    const bucket = buckets.get(evaluationSplit(dataset, splits.get(dataset)));
+    for (const step of steps) bucket?.set(key(dataset, step), 0);
+  }
+  for (const e of own) {
+    const bucket = buckets.get(evaluationSplit(e.dataset, e.split));
+    if (!bucket) continue;
+    const id = key(e.dataset, checkpoints.get(e.checkpointId).step);
+    const { done, total } = e.progress ?? {};
+    const fraction =
+      e.status === "succeeded"
+        ? 1
+        : Number.isFinite(done) && Number.isFinite(total) && total > 0
+          ? Math.min(0.99, Math.max(0, done / total))
+          : 0;
+    bucket.set(id, Math.max(bucket.get(id) ?? 0, fraction));
+  }
+  return [
+    training,
+    ...[...buckets.values()].map((bucket) => {
+      if (!bucket.size) return null;
+      const progress = [...bucket.values()];
+      const complete = progress.filter((value) => value === 1).length;
+      return {
+        value: progress.reduce((sum, value) => sum + value, 0),
+        total: bucket.size,
+        text: complete + " / " + bucket.size,
+      };
+    }),
+  ];
+}
+
+export function showRunProgress(panel, name, run, evaluations, checkpoints) {
+  panel.hidden = !run;
+  if (!run) return;
+  const title = el("p", name, "sidebar-progress-title");
+  title.title = name;
+  const items = el("div", null, "sidebar-progress-items");
+  const labels = [
+    tr("训练", "Training"),
+    tr("验证", "Validation"),
+    tr("测试", "Test"),
+  ];
+  runProgress(run, evaluations, checkpoints).forEach((progress, i) => {
+    const row = el("div", null, "sidebar-progress-row");
+    const track = el("div", null, "sidebar-progress-track");
+    const fill = el("span", null, "sidebar-progress-fill");
+    track.append(fill);
+    if (progress) {
+      const value = Math.max(0, Math.min(progress.total, progress.value));
+      fill.style.width = (100 * value) / progress.total + "%";
+      track.setAttribute("role", "progressbar");
+      track.setAttribute("aria-label", labels[i]);
+      track.setAttribute("aria-valuemax", progress.total);
+      track.setAttribute("aria-valuenow", value);
+      track.setAttribute(
+        "aria-valuetext",
+        progress.steps ? progress.steps + " · " + progress.text : progress.text,
+      );
+    }
+    row.append(
+      el("span", labels[i]),
+      el("span", progress?.text ?? "—", "sidebar-progress-value"),
+      track,
+    );
+    if (progress?.steps)
+      row.append(el("span", progress.steps, "sidebar-progress-steps"));
+    else if (progress)
+      row.title = tr(
+        "已完成 / 已登记的 checkpoint 评测项",
+        "Completed / registered checkpoint evaluations",
+      );
+    items.append(row);
+  });
+  panel.replaceChildren(title, items);
 }
 
 const pinIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l-1 7 3 3v2H6v-2l3-3zM12 15v6"/></svg>';
@@ -80,7 +198,13 @@ function panels(groups, ctx) {
     };
     const tools=el("div",null,"metric-tools"),zoom=el("div",null,"chart-actions");tools.append(zoom,pin);heading.append(el("h2",g.name),tools);panel.append(heading);
     if(g.scope)panel.append(el("small",g.scope,"monitor-muted"));
-    panel.append(curve([...g.series.values()],g.name,"",JSON.stringify([namespace,ctx.run.id,id]),tr,zoom));return panel;
+    const ordered = [...g.series.values()].sort((a,b) => {
+      if ((a.runId === ctx.run.id) !== (b.runId === ctx.run.id))
+        return a.runId === ctx.run.id ? -1 : 1;
+      return (ctx.versionDates.get(b.versionId) ?? "").localeCompare(ctx.versionDates.get(a.versionId) ?? "") ||
+        b.runId.localeCompare(a.runId, undefined, {numeric:true});
+    });
+    panel.append(curve(ordered,g.name,"",JSON.stringify([namespace,ctx.run.id,id]),tr,zoom));return panel;
   }
   function render(){
     const top=el("section",null,"pin-section"),fixed=el("div",null,"scalar-grid");
@@ -109,27 +233,55 @@ function panels(groups, ctx) {
   }
   render();return [host];
 }
-function sample(groups, name, scope, label, step, value, run, attempt) {
+function sample(groups, name, scope, label, step, value, run, attempt, time) {
   if (!Number.isFinite(value) || !Number.isFinite(step)) return;
   const key = JSON.stringify([scope, name]);
   if (!groups.has(key)) groups.set(key, { name, scope, series: new Map() });
   const seriesId = JSON.stringify([run.id, attempt]);
   const series = groups.get(key).series;
-  if (!series.has(seriesId)) series.set(seriesId, { label, color: experimentColor(run.versionId || run.id), points: [] });
-  series.get(seriesId).points.push([step, value]);
+  if (!series.has(seriesId)) series.set(seriesId, { label, runId:run.id, versionId:run.versionId, color: experimentColor(run.versionId || run.id), points: [] });
+  const item = series.get(seriesId);
+  item.updatedAt = latestMetricTime([item.updatedAt, metricTime(time)]);
+  item.points.push([step, value]);
 }
+export function trainingSeries(samples) {
+  const byAttempt = new Map();
+  for (const sample of samples) {
+    if (!Number.isFinite(sample.step)) continue;
+    const attempt = sample.attempt ?? 1;
+    if (!byAttempt.has(attempt))
+      byAttempt.set(attempt, { firstStep: sample.step, samples: [] });
+    const batch = byAttempt.get(attempt);
+    batch.firstStep = Math.min(batch.firstStep, sample.step);
+    batch.samples.push(sample);
+  }
+
+  const series = [];
+  for (const [attempt, batch] of [...byAttempt].sort(([a], [b]) => a - b)) {
+    const previous = series.at(-1);
+    if (!previous || batch.firstStep <= Math.max(1, previous.firstStep)) {
+      series.push({ attempt, ...batch });
+      continue;
+    }
+    // This attempt resumed at a higher step. Its samples replace the abandoned
+    // suffix of the previous attempt, even for metrics logged at other cadences.
+    previous.samples = previous.samples
+      .filter((sample) => sample.step < batch.firstStep)
+      .concat(batch.samples);
+  }
+  return series;
+}
+
 export function trainingView(ctx) {
   const groups = new Map();
-  for (const run of [ctx.run, ...ctx.peers])
-    for (const m of ctx.samples.get(run.id) ?? [])
-      sample(
-        groups,
-        m.name,
-        "",
-        ctx.runLabel(run) + " #" + m.attempt,
-        m.step,
-        m.value, run, m.attempt,
-      );
+  for (const run of [ctx.run, ...ctx.peers]) {
+    const series = trainingSeries(ctx.samples.get(run.id) ?? []);
+    for (const entry of series) {
+      const label = ctx.runLabel(run) + (series.length > 1 ? " #" + entry.attempt : "");
+      for (const m of entry.samples)
+        sample(groups, m.name, "", label, m.step, m.value, run, entry.attempt, m.time ?? m.at);
+    }
+  }
   return panels(groups,ctx);
 }
 export function evaluationView(ctx) {
@@ -138,7 +290,7 @@ export function evaluationView(ctx) {
   for (const e of ctx.evals) {
     if (
       e.status !== "succeeded" ||
-      (e.split || inferred(e.dataset) || "validation") !== ctx.view
+      evaluationSplit(e.dataset, e.split) !== ctx.view
     )
       continue;
     const ck = ctx.weightById.get(e.checkpointId),
@@ -146,9 +298,30 @@ export function evaluationView(ctx) {
     if (!run) continue;
     const scope = [e.dataset, e.protocolId, ck.weights].join(" / ");
     for (const m of e.finalMetrics)
-      sample(groups, m.name, scope, ctx.runLabel(run), ck.step, m.value, run);
+      sample(groups, m.name, scope, ctx.runLabel(run), ck.step, m.value, run, undefined, m.time ?? m.at ?? e.completedAt);
   }
-  return panels(groups,ctx);
+  const pending = ctx.evals.filter(e =>
+    ctx.weightById.get(e.checkpointId)?.runId === ctx.run.id &&
+    ["queued","running","partial","failed"].includes(e.status) &&
+    evaluationSplit(e.dataset, e.split) === ctx.view);
+  const priority = { running: 0, failed: 1, partial: 2, queued: 3 };
+  pending.sort((a, b) =>
+    priority[a.status] - priority[b.status] ||
+    a.dataset.localeCompare(b.dataset) ||
+    (ctx.weightById.get(a.checkpointId)?.step ?? 0) - (ctx.weightById.get(b.checkpointId)?.step ?? 0));
+  const progress = pending.map(e => {
+    const box = el("div",null,"evaluation-progress");
+    const step = ctx.weightById.get(e.checkpointId)?.step;
+    const done = e.progress?.done ?? e.step ?? 0, total = e.progress?.total;
+    box.append(el("span", [e.dataset, step?.toLocaleString("en"), states(e.status, ctx.view),
+      Number.isFinite(total) ? done + " / " + total : String(done)].filter(v=>v!=null).join(" · ")));
+    if (Number.isFinite(total) && total > 0) {
+      const bar = el("progress"); bar.max=total;bar.value=done;
+      bar.setAttribute("aria-label",e.dataset);box.append(bar);
+    }
+    return box;
+  });
+  return [...progress,...panels(groups,ctx)];
 }
 
 export function settingsView(projectPicker, schedule) {

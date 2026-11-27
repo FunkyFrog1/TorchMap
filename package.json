@@ -1,6 +1,6 @@
 {
   "name": "torchmap-local",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Local model lineage, training runs and checkpoint-linked evaluation using the TorchMap protocol.",
   "type": "module",
   "license": "MIT",

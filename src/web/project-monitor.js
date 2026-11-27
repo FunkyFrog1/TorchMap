@@ -2,9 +2,11 @@ import {
   settingsView,
   trainingView,
   evaluationView,
+  showRunProgress,
   el,
   tr,
 } from "./monitor-views.js";
+import { mergeReply, readBaseline, saveBaseline } from "./monitor-cache.js";
 const views = ["training", "validation", "test", "roadmap", "config", "settings"];
 const titles = () => [
   tr("训练", "Training"),
@@ -62,15 +64,14 @@ export function mountMonitor({
   let runId = q.get("run") ?? "";
   let snap = null,
     active = null,
-    painting = 0,
-    busy = false;
+    painting = 0;
   const
     cache = new Map();
   const nav = el("nav", null, "monitor-nav"),
     navButtons = [];
   nav.setAttribute("aria-label", tr("项目页面", "Project views"));
   for (const [i, name] of views.entries()) {
-    if(name==="roadmap")continue;
+    if (name === "roadmap") continue;
     const b = el("button");
     b.dataset.view = name;
     b.append(icon(iconPaths[i]), el("span"));
@@ -79,9 +80,11 @@ export function mountMonitor({
     if (name === "config") nav.prepend(b);
     else nav.append(b);
   }
-  document
-    .querySelector(".project-sidebar")
-    .insertBefore(nav, $("project-menu"));
+  const progress = el("section",null,"sidebar-progress");
+  progress.hidden = true;
+  const sidebar = document.querySelector(".project-sidebar");
+  sidebar.insertBefore(progress, $("project-menu"));
+  sidebar.insertBefore(nav, $("project-menu"));
   if (readOnly) $("project-menu").open = false;
 
   const menu = $("project-menu");
@@ -98,7 +101,7 @@ export function mountMonitor({
   const updated = el("span", tr("正在获取数据…", "Fetching data…"));
   const reload = el("button", tr("↻ 刷新", "↻ Refresh"));
   reload.type = "button";
-  reload.onclick = refresh;
+  reload.onclick = () => refresh(true);
   refreshBar.append(updated, reload);
   main.append(refreshBar, notice, body);
   const workspace = document.querySelector(".workspace");
@@ -190,16 +193,35 @@ export function mountMonitor({
   document.querySelector(".map-toolbar").append(closeMap);
   let transition;
   function changePage(v) {
-    if(v===page)return;
-    const morph=v==="roadmap" || page==="roadmap";
-    if(v==="roadmap")previousPage=page;
-    const show=()=>{page=v;center.scrollTop=0;draw();};
-    if(!morph || !document.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches){show();return;}
-    if(transition)return;
-    const root=document.documentElement;
+    if (v === page) return;
+    const morph = v === "roadmap" || page === "roadmap";
+    if (v === "roadmap") previousPage = page;
+    page = v;
+    syncUrl();
+    transition?.skipTransition();
+    const show = () => {
+      center.scrollTop = 0;
+      draw();
+    };
+    if (
+      !morph ||
+      !document.startViewTransition ||
+      matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      show();
+      return;
+    }
+    const root = document.documentElement;
     root.classList.add("map-morph");
-    transition=document.startViewTransition(show);
-    transition.finished.finally(()=>{root.classList.remove("map-morph");transition=null;});
+    const current = document.startViewTransition(show);
+    transition = current;
+    current.ready.catch(() => {}); // An immediately superseded transition can skip its animation.
+    current.finished.finally(() => {
+      if (transition === current) {
+        root.classList.remove("map-morph");
+        transition = null;
+      }
+    });
   }
   async function points(r, signal) {
     const tag = [r.seriesRevision, r.updated, r.status, r.step, r.attempt].join(
@@ -207,24 +229,38 @@ export function mountMonitor({
       ),
       hit = cache.get(r.id);
     if (hit?.tag === tag) return hit.rows;
-    const rows = [];
-    let after = 0;
-    while (true) {
-      const p = await get(
-        "metrics?run=" + encodeURIComponent(r.id) + "&after=" + after,
-        signal,
-      );
-      rows.push(...p.items);
-      if (!p.more) break;
-      after = p.next;
-    }
-    cache.set(r.id, { tag, rows });
-    return rows;
+    const key = JSON.stringify([projectId, "series", r.id]);
+    const previous = hit?.entry ?? await readBaseline(key);
+    const query = new URLSearchParams({ run: r.id });
+    if (previous) query.set("since", previous.revision);
+    const packet = await get("monitor-series?" + query, signal);
+    const entry = mergeReply(previous, packet);
+    if (signal.aborted) throw signal.reason;
+    cache.set(r.id, { tag, rows: entry.data.points, entry });
+    if (entry !== previous) void saveBaseline(key, entry);
+    return entry.data.points;
   }
-  let initial = true,
-    wasMap = false,
+  let wasMap = false,
     context = "";
-  async function draw() {
+  let scope, baseline, pending;
+  function draw() {
+    const query = new URLSearchParams({ view: page });
+    const versions = [getSelected()];
+    if (["training", "test", "validation", "config"].includes(page))
+      versions.push(...getCompareVersions());
+    for (const id of [...new Set(versions.filter(Boolean))].sort())
+      query.append("version", id);
+    const next = query.toString();
+    if (scope === next) return paint();
+    pending?.abort();
+    pending = null;
+    scope = next;
+    baseline = null;
+    snap = null;
+    void paint();
+    return refresh();
+  }
+  async function paint() {
     const seq = ++painting;
     active?.abort();
     active = new AbortController();
@@ -238,7 +274,7 @@ export function mountMonitor({
     workspace.hidden = !isMap;
     setMiniPage(isMap);
     center.hidden = isMap;
-    main.hidden = isMap || page==="config" || page==="settings";
+    main.hidden = isMap || page === "config" || page === "settings";
     settings.panel.hidden = page !== "settings";
     if (page === "settings") settings.show(map.nodes);
     else if (!menu.contains(projectPicker)) projectLabel.after(projectPicker);
@@ -272,6 +308,7 @@ export function mountMonitor({
 
     if (snap) runId = r?.id ?? "";
     const ck = new Map((snap?.checkpoints ?? []).map((c) => [c.id, c]));
+    showRunProgress(progress, r ? labelRun(r) : "", r, runs, ck);
     const candidates = runs.filter((x) => x.kind === "train" && x.id !== r?.id);
     const sourceRun = ck.get(r?.checkpointId)?.runId;
     const peers = [];
@@ -360,6 +397,7 @@ export function mountMonitor({
         evals,
 
         runLabel: labelRun,
+        versionDates: new Map(map.nodes.map(n => [n.id, n.date])),
       };
       body.replaceChildren(
         ...(page === "training" ? trainingView(ctx) : evaluationView(ctx)),
@@ -389,26 +427,41 @@ export function mountMonitor({
         notice.textContent = tr("读取失败 · ", "Read failed · ") + e.message;
     }
   }
-  async function refresh() {
-    if (busy) return;
-    busy = true;
+  async function refresh(force = false) {
+    if (pending) return;
+    const controller = new AbortController();
+    pending = controller;
     reload.disabled = true;
     try {
-      snap = await get("snapshot");
+      const key = JSON.stringify([projectId, "monitor", scope]);
+      const previous = baseline ?? await readBaseline(key);
+      if (controller.signal.aborted) return;
+      const query = new URLSearchParams(scope);
+      if (force) query.set("refresh", "1");
+      if (previous) query.set("since", previous.revision);
+      const packet = await get("monitor?" + query, controller.signal);
+      if (controller.signal.aborted) return;
+      const entry = mergeReply(previous, packet);
+      const needsPaint = !snap || entry !== baseline || Boolean(notice.textContent);
+      baseline = entry;
+      snap = entry.data;
+      if (entry !== previous) void saveBaseline(key, entry);
+      if (needsPaint) await paint();
+      if (controller.signal.aborted) return;
       const time = new Date();
-      updated.textContent = tr("上次更新 ", "Last updated ") + time.toLocaleTimeString(document.documentElement.lang, {hour12:false});
+      updated.textContent = tr("页面刷新 ", "Page refreshed ") + time.toLocaleTimeString(document.documentElement.lang, {hour12:false});
       updated.title = time.toLocaleString(document.documentElement.lang);
-      await draw();
     } catch (e) {
-      notice.textContent = tr("刷新失败 · ", "Refresh failed · ") + e.message;
+      if (!controller.signal.aborted) notice.textContent = tr("刷新失败 · ", "Refresh failed · ") + e.message;
     } finally {
-      busy = false;
-      reload.disabled = false;
+      if (pending === controller) {
+        pending = null;
+        reload.disabled = false;
+      }
     }
   }
 
   draw();
-  refresh();
   schedule(settings.seconds());
   const toggleMap=()=>changePage(page==="roadmap"?previousPage:"roadmap");
   document.addEventListener("keydown",e=>{if(e.key==="Escape" && page==="roadmap" && !document.querySelector("dialog[open]"))changePage(previousPage);});

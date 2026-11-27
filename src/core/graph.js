@@ -148,6 +148,67 @@ export function normalizeProject(raw) {
   };
 }
 
+function lineageRows(nodes, parents, generation) {
+  const branches = new Map(nodes.map(({ id }) => [id, []]));
+  const roots = [];
+  for (const { id } of nodes) {
+    const incoming = parents.get(id);
+    const parent =
+      incoming.find(({ kind }) => kind === "finetune") ??
+      incoming.find(({ kind }) => kind === "branch") ??
+      incoming[0];
+    if (parent) branches.get(parent.from).push(id);
+    else roots.push(id);
+  }
+
+  // Pack neighboring branches with one lane of separation where they share
+  // a generation. A short branch leaves its unused columns free.
+  function pack(ids) {
+    const bounds = new Map();
+    const trees = [];
+    for (const id of ids) {
+      const tree = layout(id);
+      const previous = trees.at(-1);
+      let offset = previous
+        ? Math.max(0, previous.row + previous.offset + 1 - tree.row)
+        : 0;
+      for (const [column, { top }] of tree.bounds) {
+        if (bounds.has(column)) {
+          offset = Math.max(offset, bounds.get(column).bottom + 1 - top);
+        }
+      }
+      for (const [column, { top, bottom }] of tree.bounds) {
+        bounds.set(column, {
+          top: bounds.get(column)?.top ?? top + offset,
+          bottom: bottom + offset,
+        });
+      }
+      trees.push({ ...tree, offset });
+    }
+    return { bounds, trees };
+  }
+
+  function layout(id) {
+    const { bounds, trees } = pack(branches.get(id));
+    const first = trees[0],
+      last = trees.at(-1);
+    const row = first
+      ? Math.floor((first.row + first.offset + last.row + last.offset) / 2)
+      : 0;
+    bounds.set(generation(id), { top: row, bottom: row });
+    return { id, row, bounds, trees };
+  }
+
+  const rows = new Map();
+  function assign(tree, inheritedOffset) {
+    const offset = inheritedOffset + tree.offset;
+    rows.set(tree.id, tree.row + offset);
+    for (const child of tree.trees) assign(child, offset);
+  }
+  for (const tree of pack(roots).trees) assign(tree, 0);
+  return rows;
+}
+
 export function layoutProject(project,mode="date",savedRows={}) {
   const nodeWidth=250,nodeHeight=132;
   const ancestors=new Map(project.nodes.map(n=>[n.id,[]])),depth=new Map();
@@ -161,9 +222,11 @@ export function layoutProject(project,mode="date",savedRows={}) {
   const columns=dates.map((key,i)=>{const members=project.nodes.filter(n=>group(n)===key);
     return {key,date:members.map(n=>n.date).sort().at(-1),x:40+i*340,count:members.length};});
   const tallest=Math.max(1,...columns.map(c=>c.count));
-  const rowPitch = mode === "generation" ? nodeHeight + 20 : 204;
+  const byGeneration = mode === "generation";
+  const rowPitch = byGeneration ? nodeHeight + 20 : 204;
   for (const c of columns) {
-    c.rowTop = 146 + (tallest - c.count) * rowPitch / 2;
+    const offset = (tallest - c.count) / 2;
+    c.rowTop = 146 + (byGeneration ? Math.floor(offset) : offset) * rowPitch;
     // Row zero is the centered starting lane. The column heading is the actual upper boundary.
     c.minRow = Math.ceil((70 - c.rowTop) / rowPitch);
   }
@@ -177,7 +240,7 @@ export function layoutProject(project,mode="date",savedRows={}) {
     parents.get(edge.to).push(edge);
     children.get(edge.from).push(edge.to);
   }
-  let maximumRow = 0;
+  const lanes = byGeneration ? lineageRows(project.nodes, parents, generation) : null;
 
   function place(node, preferred, minimum = 0) {
     const used = occupied.get(group(node));
@@ -195,7 +258,6 @@ export function layoutProject(project,mode="date",savedRows={}) {
           : row;
     }
     used.add(row);
-    maximumRow = Math.max(maximumRow, row);
     positions.set(node.id, {
       ...node,
       row,
@@ -204,10 +266,9 @@ export function layoutProject(project,mode="date",savedRows={}) {
     });
   }
 
-  // Saved lanes are the source of truth, as in the original date-column map.
-  // Reserve them before placing new cards so adding a branch cannot push them.
+  // Reserve saved lanes before arranging new cards.
   for (const column of columns) {
-    for (const node of project.nodes.map(n=>mode==="generation"?{...n,row:savedRows[n.id]}:n)
+    for (const node of project.nodes.map(n=>byGeneration?{...n,row:savedRows[n.id]}:n)
       .filter(
         (n) => group(n) === column.key && Number.isInteger(n.row),
       )
@@ -238,10 +299,21 @@ export function layoutProject(project,mode="date",savedRows={}) {
         positions.get(edge.from),
       );
       const sameDay = upstream.filter((parent) => group(parent) === group(node));
-      const minimum = sameDay.length
-        ? Math.max(...sameDay.map((parent) => parent.row)) + 1
-        : 0;
-      place(node, mode === "generation" ? 0 : upstream[0]?.row ?? 0, minimum);
+      if (byGeneration) {
+        const column = columnByDate.get(group(node));
+        const anchor = incoming.find(({ kind }) => kind === "finetune")
+          ?? lineage[0] ?? incoming[0];
+        const parent = anchor ? positions.get(anchor.from) : null;
+        const preferredY = parent
+          ? parent.y + (lanes.get(id) - lanes.get(parent.id)) * rowPitch
+          : 146 + lanes.get(id) * rowPitch;
+        place(node, Math.round((preferredY - column.rowTop) / rowPitch), column.minRow);
+      } else {
+        const minimum = sameDay.length
+          ? Math.max(...sameDay.map((parent) => parent.row)) + 1
+          : 0;
+        place(node, upstream[0]?.row ?? 0, minimum);
+      }
     }
     for (const child of children.get(id)) {
       remaining.set(child, remaining.get(child) - 1);

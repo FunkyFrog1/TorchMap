@@ -56,8 +56,10 @@ test("train, resume, fork and evaluate one EMA checkpoint, replay without double
   await l.append(metric, map);
   assert.equal((await l.append(metric, map)).duplicate, true);
   await assert.rejects(l.append({ ...metric, value: 9 }, map));
+  await send("metric", { ...a, step: 45, name: "loss", value: 0.18 });
   await send("attempt.ended", { ...a, status: "failed" });
   await send("attempt.started", { ...a, attempt: 2, resumeFrom: "ck" });
+  assert.deepEqual(l.series.get("train").map(p => p.step), [40]);
   await assert.rejects(
     send("metric", { ...a, step: 41, name: "loss", value: 5 }),
   );

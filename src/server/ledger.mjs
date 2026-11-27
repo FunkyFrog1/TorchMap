@@ -63,9 +63,15 @@ export class Ledger {
   index(e, apply) {
     apply();
     this.ids.set(e.id, e);
+    if (e.type === "attempt.started") {
+      // Keep the journal intact; the displayed series follows the resumed history.
+      const cutoff = e.resumeFrom ? this.state.checkpoints.get(e.resumeFrom).step : -1;
+      this.series.set(e.runId, (this.series.get(e.runId) ?? []).filter(p => p.step <= cutoff));
+    }
     if (e.type === "metric") {
       if (!this.series.has(e.runId)) this.series.set(e.runId, []);
       this.series.get(e.runId).push(e);
+      this.state.runs.get(e.runId).seriesRevision = e.id;
     }
   }
   async append(payload, map, asset = false) {

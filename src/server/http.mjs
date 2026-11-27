@@ -1,9 +1,14 @@
 import http from "node:http";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
+import { gzip } from "node:zlib";
+import { promisify } from "node:util";
 import { api } from "./api.mjs";
+import { boardLayout } from "./board-layout.mjs";
+const compress = promisify(gzip);
 const webFiles = new Set([
   "app.js",
+  "metric-time.js",
   "vendor/markdown-it.min.js",
   "canvas.js",
   "editor.js",
@@ -12,6 +17,7 @@ const webFiles = new Set([
   "storage.js",
   "themes.js",
   "project-monitor.js",
+  "monitor-cache.js",
   "monitor-views.js",
   "monitor-chart.js",
   "styles/monitor.css",
@@ -31,7 +37,7 @@ async function readBody(request) {
   }
   return size ? JSON.parse(Buffer.concat(chunks).toString("utf8")) : null;
 }
-export function service(store, src) {
+export function service(store, src, { layoutRoot } = {}) {
   return http.createServer(async (req, res) => {
     const send = (code, type, content) => {
       res.writeHead(code, {
@@ -62,6 +68,12 @@ export function service(store, src) {
         }
       }
       if (url.pathname.startsWith("/api/")) {
+        if (layoutRoot && url.pathname === "/api/board-layout" &&
+            ["GET", "PUT"].includes(req.method)) {
+          const body = req.method === "PUT" ? await readBody(req) : null;
+          return send(200, "application/json; charset=utf-8",
+            JSON.stringify(await boardLayout(layoutRoot, store, url, req, res, body)));
+        }
         if (store.readOnly && req.method !== "GET")
           return send(
             405,
@@ -85,13 +97,20 @@ export function service(store, src) {
         }
         const body = req.method === "GET" ? null : await readBody(req);
         const action = () => api(store, url, req.method, body, req);
-        return send(
-          200,
-          "application/json; charset=utf-8",
-          JSON.stringify(
-            await (req.method === "GET" ? action() : store.write(action)),
-          ),
-        );
+        const json = JSON.stringify(await (req.method === "GET" ? action() : store.write(action)));
+        if (["/api/monitor", "/api/monitor-series"].includes(url.pathname) && json.length >= 2048) {
+          res.setHeader("Vary", "Accept-Encoding");
+          const acceptsGzip = (req.headers["accept-encoding"] ?? "").split(",").some(part => {
+            const [encoding, quality] = part.trim().toLowerCase().split(/\s*;\s*/);
+            return encoding === "gzip" && (quality === undefined || Number(quality.replace(/^q=/, "")) > 0);
+          });
+          if (acceptsGzip) {
+            const compressed = await compress(json, { level: 1 });
+            res.setHeader("Content-Encoding", "gzip");
+            return send(200, "application/json; charset=utf-8", compressed);
+          }
+        }
+        return send(200, "application/json; charset=utf-8", json);
       }
       const name = url.pathname.slice(1) || "index.html";
       if (
@@ -106,6 +125,7 @@ export function service(store, src) {
             ".html": "text/html",
             ".js": "text/javascript",
             ".css": "text/css",
+            ".json": "application/json",
           }[path.extname(name)] + "; charset=utf-8",
           await readFile(file),
         );

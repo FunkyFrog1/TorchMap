@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { MonitorHistory, monitorSnapshot } from "./monitor-sync.mjs";
+const histories = new WeakMap();
 export async function api(store, url, method, body, request) {
   const route = method + " " + url.pathname,
     id = url.searchParams.get("project") || "default";
@@ -32,7 +34,24 @@ export async function api(store, url, method, body, request) {
       });
     return store.save(id, m);
   }
-  const l = await store.ledger(id);
+  const l = await store.ledger(id, { fresh: ["GET /api/snapshot", "GET /api/monitor"].includes(route) && url.searchParams.get("refresh") === "1" });
+  if (route === "GET /api/monitor" || route === "GET /api/monitor-series") {
+    if (!histories.has(store)) histories.set(store, new MonitorHistory());
+    const history = histories.get(store);
+    const since = url.searchParams.get("since");
+    if (route === "GET /api/monitor-series") {
+      const run = url.searchParams.get("run");
+      if (!l.state.runs.has(run)) throw Error("Unknown run");
+      const points = (l.series.get(run) ?? []).map((point, id) => ({ ...point, id }));
+      return history.reply(JSON.stringify([id, "series", run]), { points }, since);
+    }
+    const view = url.searchParams.get("view");
+    if (!["roadmap", "training", "validation", "test", "config", "settings"].includes(view))
+      throw Error("Unknown monitor view");
+    const versions = [...new Set(url.searchParams.getAll("version"))].sort();
+    const groups = monitorSnapshot(l.snapshot(), view, new Set(versions));
+    return history.reply(JSON.stringify([id, "monitor", view, versions]), groups, since);
+  }
   if (route === "GET /api/snapshot") return l.snapshot();
   if (route === "GET /api/metrics") {
     const runId = url.searchParams.get("run");
